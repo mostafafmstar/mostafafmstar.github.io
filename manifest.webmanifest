@@ -1,0 +1,22 @@
+{
+ "name": "محلل البيانات مصطفى صلاح",
+ "short_name": "MSA DA",
+ "lang": "ar",
+ "dir": "rtl",
+ "start_url": "./",
+ "display": "standalone",
+ "background_color": "#F7F4EC",
+ "theme_color": "#14213D",
+ "icons": [
+  {
+   "src": "apple-touch-icon.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
+}
