@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+<defs>
+<linearGradient id="fr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3A4149"/><stop offset=".5" stop-color="#8F98A2"/><stop offset="1" stop-color="#2E343C"/></linearGradient>
+<linearGradient id="wt" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFD54A"/><stop offset="1" stop-color="#D89A00"/></linearGradient>
+<linearGradient id="seat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4FD18A"/><stop offset="1" stop-color="#127A40"/></linearGradient>
+<radialGradient id="sh" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+</defs>
+<ellipse cx="64" cy="116" rx="56" ry="7" fill="url(#sh)"/>
+<rect x="22" y="10" width="8" height="102" rx="3" fill="url(#fr)"/><rect x="60" y="10" width="8" height="102" rx="3" fill="url(#fr)"/>
+<rect x="18" y="8" width="96" height="8" rx="4" fill="url(#fr)"/>
+<circle cx="108" cy="16" r="6" fill="#2E343C"/><circle cx="108" cy="16" r="2.5" fill="#C9D0D6"/>
+<line x1="108" y1="22" x2="108" y2="56" stroke="#1B1F24" stroke-width="2"/>
+<rect x="92" y="54" width="32" height="5" rx="2.5" fill="#3A4149"/>
+<line x1="45" y1="16" x2="45" y2="60" stroke="#1B1F24" stroke-width="2"/>
+<g><rect x="33" y="60" width="24" height="7" rx="2" fill="url(#wt)"/><rect x="33" y="68" width="24" height="7" rx="2" fill="url(#wt)"/><rect x="33" y="76" width="24" height="7" rx="2" fill="url(#wt)"/><rect x="33" y="84" width="24" height="7" rx="2" fill="url(#wt)"/><rect x="33" y="92" width="24" height="7" rx="2" fill="url(#wt)"/><rect x="33" y="100" width="24" height="7" rx="2" fill="url(#wt)"/></g>
+<rect x="35" y="61" width="20" height="2" rx="1" fill="#fff" opacity=".5"/>
+<rect x="82" y="78" width="30" height="9" rx="4" fill="url(#seat)"/><rect x="94" y="87" width="6" height="25" rx="2" fill="url(#fr)"/>
+<rect x="84" y="60" width="9" height="20" rx="4" fill="url(#seat)"/>
+<rect x="18" y="108" width="100" height="6" rx="3" fill="#2E343C"/>
+</svg>
