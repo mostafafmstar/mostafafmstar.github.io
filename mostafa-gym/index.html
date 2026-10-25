@@ -298,6 +298,21 @@ footer{color:var(--muted);font-size:.78rem;padding-block:0 30px}
 .mb .top{display:flex;justify-content:space-between;gap:6px;font-size:.8rem}
 .mb .bar{height:8px;border-radius:999px;background:var(--surface2);overflow:hidden;margin-top:3px}
 .mb .bar div{height:100%;border-radius:999px}
+.weekstrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:6px}
+.dayc{border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:9px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;min-width:0;cursor:pointer;color:var(--ink)}
+.dayc:hover{border-color:var(--leaf)}
+.dayc[aria-pressed="true"]{border-color:var(--leaf);background:var(--leaf-soft);box-shadow:0 0 0 2px var(--leaf) inset}
+.dayc .dn{font-weight:800;font-family:var(--display);display:flex;align-items:center;gap:4px;font-size:.92rem}
+.dayc .dn img{width:16px;height:16px}
+.dayc .dk{font-size:.74rem;color:var(--muted)}.dayc .dk.warn{color:var(--tomato)}
+.dayc .dc{font-size:.8rem;font-weight:700;color:var(--leaf-ink)}
+.dayc small{font-size:.68rem;color:var(--muted);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.wksum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.wksum div{background:var(--surface2);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.wksum span{font-size:.74rem;color:var(--muted)}.wksum b{font-family:var(--display);font-size:1.02rem}
+.dayttl{font-weight:700;color:var(--leaf-ink)}
+details.shop summary{display:flex;align-items:center;gap:8px}details.shop summary img{width:22px;height:22px}
+@media (max-width:720px){.weekstrip{grid-template-columns:repeat(4,minmax(0,1fr))}.wksum{grid-template-columns:1fr 1fr}}
 @media (max-width:1000px){.tiergrid{grid-template-columns:1fr 1fr}.microgrid{grid-template-columns:1fr 1fr}}
 @media (max-width:720px){.falt{grid-template-columns:32px minmax(0,1fr) auto}.falt .btn{grid-column:1/-1}.microgrid{grid-template-columns:1fr}}
 /* alternatives & missing machines */

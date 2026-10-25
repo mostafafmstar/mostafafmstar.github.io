@@ -20,14 +20,14 @@ function exampleMeals(){return [
 function defaults(){return {
   lang:"ar",theme:"",country:"sa",tab:"profile",example:true,
   p:{sex:"m",age:37,w:86,h:185,act:3,link:true,goal:"recomp",mode:"auto",kcal:2300,fs:"normal",tri:2,bf:true},
-  meals:exampleMeals(), prices:{}, tr:{},
+  meals:exampleMeals(), week:null, day:0, prices:{}, tr:{},
   gym:{mode:"general",wd:[1,2,4,5],level:"int",eq:"gym",sty:"mix",gg:"hypertrophy",muscles:["quads","glutes","hamstrings","abs"],load:3}
 };}
 let S=defaults();
 try{const raw=localStorage.getItem(KEY); if(raw){const o=JSON.parse(raw); S=Object.assign(defaults(),o); S.p=Object.assign(defaults().p,o.p||{}); S.gym=Object.assign(defaults().gym,o.gym||{});}}catch(e){}
 if(location.hash){const h=location.hash.slice(1); if(["profile","body","food","gym","export"].includes(h)) S.tab=h;}
 let saveT=null;
-function save(){clearTimeout(saveT); saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}},250);}
+function save(){if(typeof syncWeek==="function") syncWeek(); clearTimeout(saveT); saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}},250);}
 
 /* ---------------- helpers ---------------- */
 function t(k,vars){const e=PI.T[k]; let s=e?(e[S.lang]??e.en):k; if(vars) for(const v in vars) s=s.split("{"+v+"}").join(vars[v]); return s;}
@@ -81,12 +81,45 @@ function targets(){
 
 /* automatic day plan — price tiers, budget and per-food alternatives */
 const TIERS={
-  eco:{p:["chicken_thigh","tilapia","chicken_breast","tuna","egg"],c:["egy_rice","potato","pasta","basmati","bulgur","pita"],v:["cucumber","tomato","carrot","zucchini","eggplant","onion"],fr:["banana","orange","dates","watermelon"],
-       bk:[["egg",150,"boil"],["foul",150,"raw"],["pita",90,"raw"],["tomato",100,"raw"]],snack:[["milk",240,"raw"],["banana",118,"raw"]],fat:["tahini","peanut_butter"]},
-  std:{p:["chicken_breast","beef_lean","hamour","tilapia","chicken_breast","salmon"],c:["basmati","sweet_potato","pasta","brown_rice","basmati","potato"],v:["broccoli","salad","green_beans","zucchini","salad","spinach"],fr:["banana","apple","strawberry"],
-       bk:[["egg",100,"boil"],["oats",0,"boil"],["egg_white",0,"pan"],["strawberry",100,"raw"]],snack:[["greek_yogurt",0,"raw"],["banana",0,"raw"]],fat:["olive_oil","almonds"]},
-  prem:{p:["salmon","beef_lean","shrimp","hamour","chicken_breast","salmon"],c:["quinoa","sweet_potato","brown_rice","basmati","quinoa","sweet_potato"],v:["broccoli","spinach","pepper","mushroom","salad","green_beans"],fr:["blueberries","kiwi","strawberry","mango"],
-       bk:[["egg",100,"boil"],["oats",0,"boil"],["greek_yogurt",170,"raw"],["blueberries",100,"raw"]],snack:[["whey",30,"raw"],["kiwi",0,"raw"],["almonds",20,"raw"]],fat:["avocado","almonds"]}
+  eco:{p:["chicken_thigh","tilapia","chicken_breast","lentils","tuna","chicken_thigh","tilapia"],
+       c:["egy_rice","potato","pasta","bulgur","sweet_potato","egy_rice","basmati"],
+       v:["cucumber","zucchini","carrot","eggplant","tomato","green_beans","lettuce"],
+       fr:["banana","orange","dates","watermelon","mango","banana","orange"],
+       bk:[[["egg",150,"boil"],["foul",150,"raw"],["pita",90,"raw"],["tomato",100,"raw"]],
+           [["oats",0,"boil"],["milk",240,"raw"],["banana",118,"raw"],["egg",100,"boil"]],
+           [["egg",100,"pan"],["cottage",0,"raw"],["ww_bread",0,"raw"],["cucumber",100,"raw"]],
+           [["foul",200,"raw"],["egg",100,"boil"],["pita",0,"raw"],["tomato",100,"raw"],["tahini",15,"raw"]],
+           [["egg",150,"pan"],["potato",0,"oven"],["tomato",100,"raw"],["cucumber",100,"raw"]],
+           [["oats",0,"boil"],["milk",240,"raw"],["dates",24,"raw"],["peanut_butter",16,"raw"]],
+           [["egg",100,"boil"],["lentils",200,"boil"],["pita",0,"raw"],["onion",50,"raw"]]],
+       snack:[[["milk",240,"raw"],["banana",0,"raw"]],[["cottage",0,"raw"],["orange",0,"raw"]],[["milk",240,"raw"],["dates",0,"raw"]],[["egg",100,"boil"],["banana",0,"raw"]]],
+       fat:[["tahini","peanut_butter"],["peanut_butter","tahini"],["olive_oil","tahini"]]},
+  std:{p:["chicken_breast","beef_lean","hamour","tilapia","chicken_thigh","salmon","tuna"],
+       c:["basmati","sweet_potato","pasta","brown_rice","potato","bulgur","basmati"],
+       v:["broccoli","salad","green_beans","zucchini","spinach","carrot","pepper"],
+       fr:["banana","apple","strawberry","orange","mango","banana","grapes"],
+       bk:[[["egg",100,"boil"],["oats",0,"boil"],["egg_white",0,"pan"],["strawberry",100,"raw"]],
+           [["greek_yogurt",170,"raw"],["oats",0,"boil"],["banana",118,"raw"],["egg",100,"boil"]],
+           [["egg",100,"pan"],["egg_white",0,"pan"],["ww_bread",0,"raw"],["tomato",100,"raw"],["cucumber",100,"raw"]],
+           [["cottage",0,"raw"],["ww_bread",0,"raw"],["apple",180,"raw"],["egg",50,"boil"]],
+           [["egg",100,"boil"],["foul",150,"raw"],["ww_bread",0,"raw"],["tomato",100,"raw"]],
+           [["oats",0,"boil"],["whey",30,"raw"],["banana",118,"raw"]],
+           [["egg",100,"pan"],["egg_white",0,"pan"],["sweet_potato",0,"oven"],["pepper",80,"raw"]]],
+       snack:[[["greek_yogurt",0,"raw"],["banana",0,"raw"]],[["cottage",0,"raw"],["apple",0,"raw"]],[["milk",240,"raw"],["dates",0,"raw"]],[["whey",30,"raw"],["banana",0,"raw"]]],
+       fat:[["olive_oil","almonds"],["almonds","peanut_butter"],["avocado","olive_oil"]]},
+  prem:{p:["salmon","beef_lean","shrimp","hamour","chicken_breast","lamb","salmon"],
+       c:["quinoa","sweet_potato","brown_rice","basmati","quinoa","potato","brown_rice"],
+       v:["broccoli","spinach","pepper","mushroom","salad","green_beans","zucchini"],
+       fr:["blueberries","kiwi","strawberry","mango","grapes","kiwi","blueberries"],
+       bk:[[["egg",100,"boil"],["oats",0,"boil"],["greek_yogurt",170,"raw"],["blueberries",100,"raw"]],
+           [["egg",100,"pan"],["egg_white",0,"pan"],["ww_bread",0,"raw"],["avocado",70,"raw"],["spinach",60,"raw"]],
+           [["greek_yogurt",170,"raw"],["whey",30,"raw"],["oats",0,"boil"],["strawberry",100,"raw"]],
+           [["salmon",80,"oven"],["egg",100,"boil"],["ww_bread",0,"raw"],["cucumber",100,"raw"]],
+           [["oats",0,"boil"],["whey",30,"raw"],["kiwi",100,"raw"],["almonds",20,"raw"]],
+           [["egg",150,"pan"],["sweet_potato",0,"oven"],["mushroom",80,"pan"],["pepper",80,"raw"]],
+           [["greek_yogurt",170,"raw"],["oats",0,"boil"],["mango",120,"raw"],["blueberries",60,"raw"]]],
+       snack:[[["whey",30,"raw"],["kiwi",0,"raw"],["almonds",20,"raw"]],[["greek_yogurt",0,"raw"],["blueberries",0,"raw"]],[["cottage",0,"raw"],["strawberry",0,"raw"]],[["whey",30,"raw"],["mango",0,"raw"]]],
+       fat:[["avocado","almonds"],["olive_oil","almonds"],["almonds","avocado"]]}
 };
 const TIER_ORDER=["prem","std","eco"];
 /* cost per unit of what the food is for */
@@ -102,30 +135,40 @@ function priceTier(f){
 const rnd10=g=>Math.max(0,Math.round(g/10)*10);
 function solveGrams(food,need,key,min,max){const per=food[key]/100; if(per<=0) return min; return Math.min(max,Math.max(min,rnd10(need/per)));}
 function sortByCost(ids,c){return ids.slice().sort((a,b)=>unitCost(F[a],c)-unitCost(F[b],c));}
-function makePlan(n,tier){
-  n=n||4; const keys=MEALKEYS[n]||MEALKEYS[4]; const T=targets(); const TP=TIERS[tier]||TIERS.std;
-  const pPool=tier==="eco"?sortByCost(TP.p.filter(id=>id!=="egg"),S.country):TP.p;
+/* healthy methods to rotate through the week (no frying) */
+const ROT={protein:["grill","oven","airfry","grill","steam","oven","pan"],carb:["boil","oven","boil","steam","oven","boil","airfry"],veg:["steam","raw","grill","oven","steam","raw","stir"]};
+function rotMethod(f,i){const ok=methodsFor(f); const pref=PI.defaultMethod[f.id]; if(pref&&(f.st==="ready"||f.st==="dry"||["egg","egg_white","lentils","chickpeas","oats","ww_bread","pita","salad","cucumber","tomato","lettuce"].includes(f.id))) return ok.includes(pref)?pref:ok[0];
+  const r=ROT[f.cat]; if(!r) return defMethod(f); for(let k=0;k<r.length;k++){const m=r[(i+k)%r.length]; if(ok.includes(m)) return m;} return defMethod(f);}
+const fruitG=f=>f.u?(f.u<20?f.u*3:f.u):150;
+function makePlan(n,tier,day,shift){
+  n=n||4; day=(+day||0)%7; shift=+shift||0; const keys=MEALKEYS[n]||MEALKEYS[4]; const T=targets(); const TP=TIERS[tier]||TIERS.std;
+  const pPool=TP.p;
   const share={breakfast:{p:1,c:.9},snack:{p:.55,c:.6},lunch:{p:1.2,c:1},pre:{p:1,c:1.3},post:{p:1.2,c:1.25},dinner:{p:1,c:.7}};
   const sp=keys.reduce((a,k)=>a+share[k].p,0), sc=keys.reduce((a,k)=>a+share[k].c,0);
-  let pi=0,ci=0,vi=0,fi=0;
+  const mainsN=keys.filter(k=>k!=="breakfast"&&k!=="snack").length||1;
+  const ix={p:day*mainsN+shift, c:day*mainsN+2+shift*2, v:day*mainsN+4+shift*3}; let fi=day+shift; const bi=day+shift*3; const used=new Set();
+  // next food from a rotating pool, skipping anything already served today
+  const pick=(pool,key)=>{for(let k=0;k<pool.length;k++){const id=pool[(ix[key]+k)%pool.length]; if(!used.has(id)){ix[key]+=k+1; used.add(id); return F[id];}} return F[pool[ix[key]++%pool.length]];};
   const meals=keys.map(k=>{
     const Pt=T.P*share[k].p/sp, Ct=T.C*share[k].c/sc; const items=[];
-    if(k==="breakfast"){
-      TP.bk.forEach(([id,g,m])=>items.push({f:id,g,m}));
-      const carb=items.find(it=>F[it.f].cat==="carb"); if(carb){ const other=sumItems(items.filter(it=>it!==carb)); carb.g=solveGrams(F[carb.f],Ct-other.c,"c",F[carb.f].u||30,F[carb.f].id==="oats"?140:270); if(F[carb.f].u) carb.g=Math.max(F[carb.f].u,Math.round(carb.g/F[carb.f].u)*F[carb.f].u); }
-      const ew=items.find(it=>it.f==="egg_white"); if(ew){ const pL=Pt-sumItems(items.filter(it=>it!==ew)).p; ew.g=pL>4?Math.min(300,Math.round(pL/10.9*100/33)*33):0; }
-      const gy=items.find(it=>it.f==="greek_yogurt"&&!it.g); if(gy) gy.g=170;
+    if(k==="breakfast"||k==="snack"){
+      const tpl=k==="breakfast"?TP.bk[bi%TP.bk.length]:TP.snack[(day+shift)%TP.snack.length];
+      tpl.forEach(([id,g,m])=>{items.push({f:id,g,m}); used.add(id);});
+      // proteins first (fill the protein left), then carbs (fill carbs left), then fruit
+      items.filter(it=>!it.g&&F[it.f].cat==="protein").forEach(it=>{const f=F[it.f]; const pL=Pt-sumItems(items.filter(x=>x!==it&&x.g)).p;
+        if(it.f==="egg_white"){it.g=pL>4?Math.min(300,Math.round(pL/10.9*100/33)*33):0; return;}
+        it.g=f.u&&f.u>=100?Math.max(f.u,Math.min(f.u*2,Math.round(Math.max(pL,8)/(f.p/100)/f.u)*f.u)):solveGrams(f,Math.max(pL,8),"p",k==="snack"?150:100,k==="snack"?340:250);});
+      items.filter(it=>!it.g&&F[it.f].cat==="carb").forEach(it=>{const f=F[it.f]; const other=sumItems(items.filter(x=>x!==it&&x.g)); let g=solveGrams(f,Ct-other.c,"c",f.u||30,it.f==="oats"?140:(f.st==="ready"?180:300));
+        if(f.u) g=Math.max(f.u,Math.round(g/f.u)*f.u); it.g=g;});
+      items.filter(it=>!it.g&&F[it.f].cat==="fruit").forEach(it=>{const f=F[it.f]; const c0=sumItems(items.filter(x=>x!==it&&x.g)).c; let g=solveGrams(f,Math.max(Ct-c0,10),"c",f.u&&f.u<20?f.u*2:80,f.u&&f.u<20?f.u*5:250); if(f.u&&f.u<20) g=Math.round(g/f.u)*f.u; it.g=g;});
       for(let i=items.length-1;i>=0;i--) if(!items[i].g) items.splice(i,1);
-    } else if(k==="snack"){
-      TP.snack.forEach(([id,g,m])=>items.push({f:id,g,m}));
-      const pr=items.find(it=>F[it.f].cat==="protein"); if(pr&&!pr.g) pr.g=solveGrams(F[pr.f],Pt,"p",170,340);
-      const fr=items.find(it=>F[it.f].cat==="fruit"); if(fr&&!fr.g){ const c0=sumItems(items.filter(it=>it!==fr&&it.g)).c; fr.g=solveGrams(F[fr.f],Ct-c0,"c",80,250); }
     } else {
-      const pf=F[pPool[pi++%pPool.length]], cf=F[TP.c[ci++%TP.c.length]], vf=F[TP.v[vi++%TP.v.length]];
-      const vg=150; const cg=solveGrams(cf,Ct-vf.c*vg/100,"c",60,450);
-      const pg=solveGrams(pf,Pt-cf.p*cg/100-vf.p*vg/100,"p",80,320);
-      items.push({f:pf.id,g:pg,m:defMethod(pf)},{f:cf.id,g:cg,m:defMethod(cf)},{f:vf.id,g:vg,m:defMethod(vf)});
-      if(k==="pre"){const fr=TP.fr[fi++%TP.fr.length]; items.push({f:fr,g:F[fr].u||120,m:"raw"});}
+      const pf=pick(pPool,"p"), cf=pick(TP.c,"c"), vf=pick(TP.v,"v");
+      const vg=150; const cg=solveGrams(cf,Ct-vf.c*vg/100-(pf.cat==="protein"&&pf.c>5?pf.c*1.5:0),"c",60,450);
+      const pg=solveGrams(pf,Pt-cf.p*cg/100-vf.p*vg/100,"p",80,pf.p<12?330:320);
+      const mi=day+ix.p;
+      items.push({f:pf.id,g:pg,m:rotMethod(pf,mi)},{f:cf.id,g:cg,m:rotMethod(cf,mi+1)},{f:vf.id,g:vg,m:rotMethod(vf,mi+2)});
+      if(k==="pre"){const fr=F[TP.fr[fi++%TP.fr.length]]; items.push({f:fr.id,g:fruitG(fr),m:"raw"});}
     }
     return {k,t:MEALTIME[k],items};
   });
@@ -135,20 +178,26 @@ function makePlan(n,tier){
   // fat top-up
   tot=sumItems(meals.flatMap(m=>m.items)); let fGap=T.F-tot.f;
   const main=meals.filter(m=>!["breakfast","snack"].includes(m.k));
-  const f1=F[TP.fat[0]], f2=F[TP.fat[1]];
-  if(fGap>6&&main[0]){const g=Math.min(f1.id==="avocado"?100:20,rnd10Small(fGap*.6/(f1.f/100))); main[0].items.push({f:f1.id,g,m:"raw"}); fGap-=g*f1.f/100;}
-  if(fGap>6){const tgt=meals.find(m=>m.k==="snack")||meals[0]; tgt.items.push({f:f2.id,g:Math.min(40,rnd10Small(fGap/(f2.f/100))),m:"raw"});}
+  const fp=TP.fat[(day+shift)%TP.fat.length]; const f1=F[fp[0]], f2=F[fp[1]];
+  const cap=f=>f.id==="avocado"?100:f.id==="olive_oil"?15:f.id==="olives"?60:20;
+  if(fGap>6&&main.length){const tgt=main[day%main.length]; const g=Math.min(cap(f1),rnd10Small(fGap*.6/(f1.f/100))); tgt.items.push({f:f1.id,g,m:"raw"}); fGap-=g*f1.f/100;}
+  if(fGap>6){const tgt=meals.find(m=>m.k==="snack")||meals[0]; tgt.items.push({f:f2.id,g:Math.min(f2.id==="avocado"?100:40,rnd10Small(fGap/(f2.f/100))),m:"raw"});}
   fitCalories(meals,T);
   return meals;
 }
+function makeWeek(n,tier){return [0,1,2,3,4,5,6].map(d=>makePlan(n,tier,d));}
+const weekAvgCost=(w,c)=>w.reduce((a,ms)=>a+sumItems(ms.flatMap(m=>m.items),c).cost,0)/w.length;
 function fitCalories(meals,T){
-  T=T||targets(); let tot=sumItems(meals.flatMap(m=>m.items)); let diff=T.kcal-tot.k;
-  const carbItems=meals.flatMap(m=>m.items).filter(it=>F[it.f].cat==="carb"&&it.f!=="oats"&&!F[it.f].u);
-  for(let pass=0;pass<3&&Math.abs(diff)>40&&carbItems.length;pass++){
+  T=T||targets(); const all=()=>meals.flatMap(m=>m.items); let tot=sumItems(all()); let diff=T.kcal-tot.k;
+  const carbItems=all().filter(it=>F[it.f].cat==="carb"&&it.f!=="oats"&&!F[it.f].u);
+  for(let pass=0;pass<5&&Math.abs(diff)>40&&carbItems.length;pass++){
     const each=diff/carbItems.length;
     carbItems.forEach(it=>{const kpg=F[it.f].k/100; it.g=Math.min(500,Math.max(40,rnd10(it.g+each/kpg)));});
-    tot=sumItems(meals.flatMap(m=>m.items)); diff=T.kcal-tot.k;
+    tot=sumItems(all()); diff=T.kcal-tot.k;
   }
+  // still over (legume-heavy budget days): trim legumes, then added fats
+  if(diff<-60){ const leg=all().filter(it=>F[it.f].grp==="legume"); if(leg.length){ const each=diff/leg.length; leg.forEach(it=>{it.g=Math.max(120,rnd10(it.g+each/(F[it.f].k/100)));}); tot=sumItems(all()); diff=T.kcal-tot.k; } }
+  if(diff<-60){ const fats=all().filter(it=>F[it.f].cat==="fat"); if(fats.length){ const each=diff/fats.length; fats.forEach(it=>{it.g=Math.max(5,rnd10Small(it.g+each/(F[it.f].k/100)));}); } }
 }
 function rnd10Small(g){return Math.max(5,Math.round(g/5)*5);}
 const planCost=meals=>sumItems(meals.flatMap(m=>m.items)).cost;
@@ -166,10 +215,12 @@ function foodAlts(it){
   return rows;
 }
 function optimizeForBudget(meals,limit){
+  // greedy: each step takes the biggest saving, but an item may only become a food not already served that day — keeps the day varied
   let swaps=0;
   for(let guard=0;guard<40&&planCost(meals)>limit;guard++){
-    let best=null;
-    meals.forEach(m=>m.items.forEach((it,ii)=>{ const cur=calcItem(it); const alt=foodAlts(it)[0]; if(alt&&alt.c.cost<cur.cost-0.01){ const save=cur.cost-alt.c.cost; if(!best||save>best.save) best={m,ii,alt,save}; } }));
+    const inDay=new Set(meals.flatMap(m=>m.items.map(it=>it.f))); let best=null;
+    meals.forEach(m=>m.items.forEach((it,ii)=>{ const cur=calcItem(it); const alt=foodAlts(it).find(a=>!inDay.has(a.x.id)&&a.x.cat===F[it.f].cat);
+      if(alt&&alt.c.cost<cur.cost-0.01){ const save=cur.cost-alt.c.cost; if(!best||save>best.save) best={m,ii,alt,save}; } }));
     if(!best) break;
     best.m.items[best.ii]={f:best.alt.x.id,g:best.alt.g,m:defMethod(best.alt.x)}; swaps++;
   }
@@ -178,15 +229,23 @@ function optimizeForBudget(meals,limit){
 let lastBudgetMsg="";
 const getBudget=()=>+((S.p.budgets||{})[S.country])||0;
 const setBudget=v=>{S.p.budgets=Object.assign({},S.p.budgets,{[S.country]:v});};
+function setWeek(w,tk){S.week=w; S.day=Math.min(6,Math.max(0,S.day|0)); S.meals=w[S.day]; S.p.tierUsed=tk; S.example=false;}
 function buildPlan(n){
   n=n||S.meals.length||4; const tier=S.p.tier||"std"; lastBudgetMsg="";
   if(tier==="budget"&&getBudget()>0){
     const lim=getBudget()/30;
-    for(const tk of TIER_ORDER){ const ms=makePlan(n,tk); if(planCost(ms)<=lim){ S.meals=ms; S.p.tierUsed=tk; lastBudgetMsg=t("budget_chosen",{tier:t("tier_"+tk)}); S.example=false; return; } }
-    const ms=makePlan(n,"eco"); let sw=optimizeForBudget(ms,lim); fitCalories(ms); sw+=optimizeForBudget(ms,lim); S.meals=ms; S.p.tierUsed="eco";
-    lastBudgetMsg=t("budget_optimized",{n:sw}); S.example=false; return;
+    for(const tk of TIER_ORDER){ const w=makeWeek(n,tk); if(weekAvgCost(w)<=lim){ setWeek(w,tk); lastBudgetMsg=t("budget_chosen",{tier:t("tier_"+tk)}); return; } }
+    const w=makeWeek(n,"eco"); let sw=0; w.forEach(ms=>{sw+=optimizeForBudget(ms,lim); fitCalories(ms); sw+=optimizeForBudget(ms,lim); fitCalories(ms);}); setWeek(w,"eco");
+    lastBudgetMsg=t("budget_optimized",{n:sw}); return;
   }
-  S.meals=makePlan(n,tier==="budget"?"std":tier); S.p.tierUsed=tier==="budget"?"std":tier; S.example=false;
+  setWeek(makeWeek(n,tier==="budget"?"std":tier),tier==="budget"?"std":tier);
+}
+function weekOk(){return Array.isArray(S.week)&&S.week.length===7&&S.week.every(Array.isArray);}
+function syncWeek(){ if(weekOk()){ S.day=Math.min(6,Math.max(0,S.day|0)); S.week[S.day]=S.meals; } }
+function ensureWeek(){
+  if(weekOk()){ syncWeek(); return; }
+  const n=S.meals.length||4; const tk=(S.p.tierUsed&&TIERS[S.p.tierUsed])?S.p.tierUsed:"std";
+  S.week=makeWeek(n,tk); S.day=0; S.week[0]=S.meals;
 }
 /* micronutrients */
 function microOf(it){const v=PI.micro[it.f]; if(!v) return null; const g=+it.g||0; return v.map(x=>x*g/100);}
@@ -425,13 +484,13 @@ function renderRail(){
   const row=(lab,cur,tgt,col,unit)=>{const pct=Math.min(130,cur/tgt*100); const d=cur-tgt; const tol=Math.max(tgt*.05,unit===t("kcal")?60:5);
     const st=Math.abs(d)<=tol?t("on_target"):d>0?`${t("over")} ${fmt(d)} ${unit}`:`${t("under")} ${fmt(-d)} ${unit}`;
     return `<div class="pr"><div class="top"><b>${esc(lab)}</b><span class="num">${fmt(cur)} / ${fmt(tgt)} ${esc(unit)}</span></div><div class="bar"><div style="width:${Math.min(100,pct)}%;background:${col}"></div></div><div class="st ${d>tol?"warn":""}">${esc(st)}</div></div>`;};
-  const sa=dayTotals("sa").cost, eg=dayTotals("eg").cost;
+  const sa=dayTotals("sa").cost, eg=dayTotals("eg").cost; const MC=(weekOk()?weekAvgCost(S.week):D.cost)*30;
   $("#rail").innerHTML=`
-  <div class="card"><h3><img src="img/food/bullseye.webp" alt="">${esc(t("today"))}</h3>
+  <div class="card"><h3><img src="img/food/bullseye.webp" alt="">${esc(t("today"))} · ${esc(wdName(S.day))}</h3>
     <div class="prog">${row(t("calories"),D.k,T.kcal,"var(--sun)",t("kcal"))}${row(t("protein"),D.p,T.P,"var(--mP)",t("g"))}${row(t("carbs"),D.c,T.C,"var(--mC)",t("g"))}${row(t("fat"),D.f,T.F,"var(--mF)",t("g"))}</div></div>
-  <div class="card"><h3><img src="img/food/money_bag.webp" alt="">${esc(t("day_cost"))}</h3>
-    <div class="cost"><b class="num">${esc(money(D.cost))}</b></div><div class="sub num">≈ ${esc(money(D.cost*30))} ${esc(t("month_cost"))}</div>
-    ${getBudget()>0?`<div class="pr" style="margin-top:8px"><div class="top"><b>${esc(t("budget_label"))}</b><span class="num">${Math.round(D.cost*30/getBudget()*100)}% ${esc(t("budget_rail"))}</span></div><div class="bar"><div style="width:${Math.min(100,D.cost*30/getBudget()*100)}%;background:${D.cost*30>getBudget()?"var(--tomato)":"var(--leaf)"}"></div></div><div class="st num">${esc(money(getBudget()))} ${esc(t("per_month"))}</div></div>`:""}
+  <div class="card"><h3><img src="img/food/money_bag.webp" alt="">${esc(t("day_cost"))} · ${esc(wdName(S.day))}</h3>
+    <div class="cost"><b class="num">${esc(money(D.cost))}</b></div><div class="sub num">≈ ${esc(money(MC))} ${esc(t("month_cost"))} · ${esc(t("week_basis"))}</div>
+    ${getBudget()>0?`<div class="pr" style="margin-top:8px"><div class="top"><b>${esc(t("budget_label"))}</b><span class="num">${Math.round(MC/getBudget()*100)}% ${esc(t("budget_rail"))}</span></div><div class="bar"><div style="width:${Math.min(100,MC/getBudget()*100)}%;background:${MC>getBudget()?"var(--tomato)":"var(--leaf)"}"></div></div><div class="st num">${esc(money(getBudget()))} ${esc(t("per_month"))}</div></div>`:""}
     <div class="costs2"><div class="${S.country==="sa"?"on":""}"><span>${FLAG.sa} ${esc(t("sa"))}</span><b class="num">${esc(money(sa,"sa"))}</b></div><div class="${S.country==="eg"?"on":""}"><span>${FLAG.eg} ${esc(t("eg"))}</span><b class="num">${esc(money(eg,"eg"))}</b></div></div></div>
   <div class="card"><h3><img src="img/food/calendar.webp" alt="">${esc(t("train_days"))}</h3>
     <div class="week mini">${(PI.T.wds[S.lang]||PI.T.wds.en).map((d,i)=>`<div class="wk ${S.gym.wd.includes(i)?"on":""}"><b>${esc(d)}</b></div>`).join("")}</div>
@@ -545,16 +604,48 @@ function mealCard(m,mi){
     </div></section>`;
 }
 function totPills(s){return `<span class="pill k num">${fmt(s.k)} ${esc(t("kcal"))}</span><span class="pill p num">P ${r0(s.p)}</span><span class="pill c num">C ${r0(s.c)}</span><span class="pill f num">F ${r0(s.f)}</span><span class="pill cost num">${esc(money(s.cost))}</span>`;}
+let tierMemo={};
 function tierCard(){
-  const n=S.meals.length||4; const cur=S.p.tier||"std"; const cost={}; ["eco","std","prem"].forEach(k=>cost[k]=planCost(makePlan(n,k))*30);
+  const n=S.meals.length||4; const cur=S.p.tier||"std"; const T=targets();
+  const key=JSON.stringify([S.country,n,T.kcal,T.P,T.C,T.F,S.prices]); if(tierMemo.key!==key){tierMemo={key,cost:{}}; ["eco","std","prem"].forEach(k=>tierMemo.cost[k]=weekAvgCost(makeWeek(n,k))*30);} const cost=tierMemo.cost;
   const chip=(k,img)=>`<button class="chip tierc" data-tier="${k}" aria-pressed="${cur===k}"><img src="${fimg(img)}" alt=""><span>${esc(t("tier_"+k))} <b class="num">${k==="budget"?(getBudget()?esc(money(getBudget()))+" "+esc(t("per_month")):""):"≈ "+esc(money(cost[k]))+" "+esc(t("per_month"))}</b><small>${esc(k==="budget"?t("budget_hint"):t("tier_"+k+"_d"))}</small></span></button>`;
   let status="";
-  if(cur==="budget"&&getBudget()>0){ const mc=planCost(S.meals)*30; const b=getBudget();
+  if(cur==="budget"&&getBudget()>0){ const mc=weekAvgCost(S.week)*30; const b=getBudget();
     status=mc<=b+0.5?`<p class="bstatus good">${esc(lastBudgetMsg?lastBudgetMsg+" ":"")}${esc(t("budget_ok",{cost:money(mc),b:money(b),left:money(b-mc)}))}</p>`:`<p class="bstatus warn">${esc(lastBudgetMsg?lastBudgetMsg+" ":"")}${esc(t("budget_over",{cost:money(mc),b:money(b)}))}</p>`; }
   return `<section class="card"><h3><img src="img/food/money_bag.webp" alt="">${esc(t("tier_title"))}</h3>
     <div class="tiergrid">${chip("eco","beans")}${chip("std","poultry_leg")}${chip("prem","sushi")}${chip("budget","money_bag")}</div>
     ${cur==="budget"?`<div class="row" style="margin-top:12px;align-items:flex-end"><label class="f" for="budgetIn">${esc(t("budget_label"))}<span class="unitbox"><input class="in num" id="budgetIn" type="number" min="0" step="50" inputmode="numeric" value="${getBudget()||""}" placeholder="${S.country==="sa"?"1500":"6000"}"><i>${esc(t("cur_"+S.country))}</i></span></label><button class="btn pri" data-budgetgo><img src="img/food/sparkles.webp" alt="">${esc(t("auto_plan"))}</button></div>`:""}
     ${status}</section>`;
+}
+const wdName=i=>(PI.T.wd[S.lang]||PI.T.wd.en)[i];
+function dayHeadline(ms){const mains=ms.filter(m=>m.k!=="breakfast"&&m.k!=="snack").map(m=>m.items.find(it=>F[it.f]&&F[it.f].cat==="protein")).filter(Boolean).map(it=>nm(F[it.f]));
+  return [...new Set(mains)].slice(0,3).join(" · ");}
+function weekCard(){
+  const T=targets(); const tots=S.week.map(ms=>sumItems(ms.flatMap(m=>m.items)));
+  const wk=tots.reduce((a,x)=>a+x.cost,0); const distinct=new Set(S.week.flatMap(ms=>ms.flatMap(m=>m.items.map(it=>it.f)))).size;
+  const days=S.week.map((ms,i)=>{const x=tots[i]; const gym=S.gym.wd.includes(i); const off=Math.abs(x.k-T.kcal)>Math.max(120,T.kcal*.06);
+    return `<button class="dayc" data-day="${i}" aria-pressed="${i===S.day}"><span class="dn">${esc(wdName(i))}${gym?`<img src="img/food/person_lifting_weights.webp" alt="${esc(t("gym_day"))}" title="${esc(t("gym_day"))}">`:""}</span>
+      <span class="dk num ${off?"warn":""}">${fmt(x.k)} ${esc(t("kcal"))}</span><span class="dc num">${esc(money(x.cost))}</span><small>${esc(dayHeadline(ms)||t("empty_day"))}</small></button>`;}).join("");
+  return `<section class="card"><h3><img src="img/food/calendar.webp" alt="">${esc(t("week_title"))}</h3>
+    <p class="sub" style="margin-top:-4px">${esc(t("week_note"))}</p>
+    <div class="weekstrip">${days}</div>
+    <div class="wksum"><div><span>${esc(t("week_total"))}</span><b class="num">${esc(money(wk))}</b></div><div><span>${esc(t("week_avg"))}</span><b class="num">${esc(money(wk/7))}</b></div><div><span>${esc(t("month_cost"))}</span><b class="num">≈ ${esc(money(wk/7*30))}</b></div><div><span>${esc(t("week_variety"))}</span><b class="num">${distinct}</b></div></div>
+    <div class="row" style="margin-top:10px"><span class="dayttl">${esc(t("editing_day",{d:wdName(S.day)}))}</span><button class="btn sm ghost" data-redoday>${esc(t("redo_day"))}</button></div></section>`;
+}
+function shopList(){
+  const agg={}; S.week.forEach(ms=>ms.forEach(m=>m.items.forEach(it=>{const f=F[it.f]; if(!f) return; const a=agg[f.id]||(agg[f.id]={f,g:0}); a.g+=+it.g||0; })));
+  // purchase weight: cooked foods are bought raw/dry (grams / yield); cooking oil listed separately
+  let oil=0; S.week.forEach(ms=>ms.forEach(m=>m.items.forEach(it=>{oil+=calcItem(it).add;})));
+  const order=["protein","carb","veg","fruit","fat","extra"];
+  const rows=Object.values(agg).sort((a,b)=>order.indexOf(a.f.cat)-order.indexOf(b.f.cat)||b.g*priceOf(b.f)/b.f.y-a.g*priceOf(a.f)/a.f.y).map(a=>{const f=a.f; const buy=a.g/f.y;
+    const qty=f.u&&f.u>=30&&f.y===1?`${fmt(Math.ceil(buy/f.u))} ${esc(f.un[S.lang]||f.un.en)}`:buy>=1000?`${r1(buy/1000)} ${esc(t("kg"))}`:`${fmt(Math.ceil(buy/10)*10)} ${esc(t("g"))}`;
+    const cost=buy*priceOf(f)/1000;
+    return `<tr><td><img src="${fimg(f.img)}" alt="">${esc(nm(f))}</td><td class="num">${qty}</td><td class="num">${esc(money(cost))}</td></tr>`;});
+  const total=weekAvgCost(S.week)*7;
+  if(oil>0) rows.push(`<tr><td><img src="${fimg(F.olive_oil.img)}" alt="">${esc(t("cook_oil"))}</td><td class="num">${fmt(Math.ceil(oil/10)*10)} ${esc(t("g"))}</td><td class="num">${esc(money(oil*PI.cookOil[S.country]/1000))}</td></tr>`);
+  return `<section class="card"><details class="prices shop"><summary><img src="img/food/canned_food.webp" alt="">${esc(t("shop_title"))} · <span class="num">${esc(money(total))}</span></summary>
+    <p class="note">${esc(t("shop_note"))}</p>
+    <div class="ptable"><table><thead><tr><th>${esc(t("food"))}</th><th>${esc(t("shop_qty"))}</th><th>${esc(t("meal_cost"))}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div></details></section>`;
 }
 function microCard(){
   const tot=microDay(); const R=rdaSet(); const low=[];
@@ -564,7 +655,7 @@ function microCard(){
   const naI=PI.nutKeys.indexOf("na");
   const notes=[]; if(low.length) notes.push(t("micro_low",{n:low.map(k=>nm(PI.nutName[k])).join("، "),foods:[...new Set(low.slice(0,3).map(sugg).join("، ").split("، "))].slice(0,6).join("، ")}));
   if(tot[naI]>R.na) notes.push(t("micro_na_high",{v:Math.round(tot[naI])})); if(!notes.length) notes.push(t("micro_all_ok"));
-  return `<section class="card"><h3><img src="img/food/sparkles.webp" alt="">${esc(t("micro_title"))}</h3><p class="sub" style="margin-top:-4px">${esc(t("micro_note",{who:t(whoKey())}))}</p>
+  return `<section class="card"><h3><img src="img/food/sparkles.webp" alt="">${esc(t("micro_title"))} · ${esc(wdName(S.day))}</h3><p class="sub" style="margin-top:-4px">${esc(t("micro_note",{who:t(whoKey())}))}</p>
     <div class="microgrid">${bars}</div>${notes.map(x=>`<div class="tipbox" style="margin-top:10px">${esc(x)}</div>`).join("")}</section>`;
 }
 function renderFood(){
@@ -581,8 +672,10 @@ function renderFood(){
     <span class="sub" style="margin-inline-start:auto">${esc(nm(PI.goals[S.p.goal]))} · ${esc(t("goal_kcal_line",{kcal:fmt(targets().kcal),p:targets().P}))}</span>
   </div></section>
   ${tierCard()}
+  ${weekCard()}
   ${S.meals.map(mealCard).join("")}
   ${microCard()}
+  ${shopList()}
   ${linkBanner("gym")}
   <section class="card"><details class="prices"><summary>${esc(t("my_prices"))} · ${esc(t("price_per_kg"))}</summary>
     <p class="note">${esc(t("price_note"))}</p>
@@ -692,7 +785,7 @@ function renderGym(){
 function renderExport(){
   return `<section class="card"><h3><img src="img/food/clipboard.webp" alt="">${esc(t("export_title"))}</h3><p class="sub">${esc(t("export_desc"))}</p>
     <div class="exp" style="margin-top:12px">
-      <div class="card expc"><img src="img/food/green_salad.webp" alt=""><b>${esc(t("report_food"))}</b><span class="sub num">${S.meals.length} · ${fmt(dayTotals().k)} ${esc(t("kcal"))}</span><button class="btn pri" data-export="food">${esc(t("export_food"))}</button></div>
+      <div class="card expc"><img src="img/food/green_salad.webp" alt=""><b>${esc(t("report_food"))}</b><span class="sub num">${esc(t("week_days7"))} · ${S.meals.length} ${esc(t("meals_word"))}</span><button class="btn pri" data-export="food">${esc(t("export_food"))}</button></div>
       <div class="card expc"><img src="img/food/person_lifting_weights.webp" alt=""><b>${esc(t("report_gym"))}</b><span class="sub">${esc(t("days_n",{n:gymDays()}))} · ${esc(t("gg_"+S.gym.gg))}</span><button class="btn pri" data-export="gym">${esc(t("export_gym"))}</button></div>
       <div class="card expc"><img src="img/food/trophy.webp" alt=""><b>${esc(t("export_all"))}</b><span class="sub">PDF · A4</span><button class="btn sun" data-export="all">${esc(t("export_all"))}</button></div>
     </div>
@@ -724,12 +817,16 @@ document.addEventListener("click",async ev=>{
   if(d.link==="food2gym"){const G=PI.goals[S.p.goal]; S.gym.gg=G.gym; S.gym.wd=WD_PATTERN[G.days].slice(); S.gym.mode="general"; S.tab="gym"; render(); toast(t("linked_gym_done",{gym:t("gg_"+G.gym),days:G.days,goal:nm(G)})); return;}
   if(d.link==="gym2food"){const map={hypertrophy:"lean_gain",strength:"lean_gain",fatburn:"fat_loss",endurance:"endurance",tone:"cut"}; S.p.goal=map[S.gym.gg]||"recomp"; S.p.link=true; S.p.mode="auto";
     buildPlan(Math.max(4,S.meals.length)); S.tab="food"; render(); toast(t("linked_food_done",{goal:nm(PI.goals[S.p.goal]),days:gymDays()})); return;}
-  if(d.auto!=null){buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("plan_built")); return;}
-  if(d.tier){S.p.tier=d.tier; ui={alt:null,nut:null}; if(d.tier!=="budget"||getBudget()>0){buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("plan_built"));} else render(); return;}
-  if(d.budgetgo!=null){const v=+($("#budgetIn")||{}).value; if(v>0) setBudget(v); buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("plan_built")); return;}
+  if(d.day!=null){syncWeek(); S.day=+d.day; S.meals=S.week[S.day]; ui={alt:null,nut:null}; render(); const el=$(".weekstrip"); if(el) el.scrollIntoView({block:"nearest"}); return;}
+  if(d.redoday!=null){const tk=S.p.tierUsed||"std"; const n=S.meals.length||4; S.redo=((S.redo||0)%5)+1; const ms=makePlan(n,tk,S.day,S.redo);
+    if(S.p.tier==="budget"&&getBudget()>0){const lim=getBudget()/30; optimizeForBudget(ms,lim); fitCalories(ms); optimizeForBudget(ms,lim); fitCalories(ms);}
+    S.meals=ms; S.week[S.day]=ms; S.example=false; ui={alt:null,nut:null}; render(); toast(t("day_redone",{d:wdName(S.day)})); return;}
+  if(d.auto!=null){buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("week_built")); return;}
+  if(d.tier){S.p.tier=d.tier; ui={alt:null,nut:null}; if(d.tier!=="budget"||getBudget()>0){buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("week_built"));} else render(); return;}
+  if(d.budgetgo!=null){const v=+($("#budgetIn")||{}).value; if(v>0) setBudget(v); buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("week_built")); return;}
   if(d.falt!=null||d.fnut!=null){const row=b.closest(".it"); const key=row.dataset.mi+"-"+row.dataset.ii; if(d.falt!=null){ui.alt=ui.alt===key?null:key; ui.nut=null;} else {ui.nut=ui.nut===key?null:key; ui.alt=null;} return render();}
   if(d.fswap){const [mi,ii,id,g]=d.fswap.split("|"); S.meals[+mi].items[+ii]={f:id,g:+g,m:defMethod(F[id])}; ui.alt=null; S.example=false; render(); toast(t("swapped")); return;}
-  if(d.clear!=null){S.meals=(MEALKEYS[S.meals.length]||MEALKEYS[4]).map(k=>({k,t:MEALTIME[k],items:[]})); S.example=false; return render();}
+  if(d.clear!=null){S.meals=(MEALKEYS[S.meals.length]||MEALKEYS[4]).map(k=>({k,t:MEALTIME[k],items:[]})); S.week[S.day]=S.meals; S.example=false; return render();}
   const mealEl=b.closest("[data-meal]");
   if(d.add!=null&&mealEl){const mi=+mealEl.dataset.meal; const f=F.chicken_breast; S.meals[mi].items.push({f:f.id,g:150,m:defMethod(f)}); S.example=false; return render();}
   if(d.del!=null){ui={alt:null,nut:null};const row=b.closest(".it"); S.meals[+row.dataset.mi].items.splice(+row.dataset.ii,1); S.example=false; return render();}
@@ -768,7 +865,7 @@ document.addEventListener("change",ev=>{
   if(el.id==="pAct"){S.p.act=+el.value; return render();}
   if(el.id==="pTri"){S.p.tri=+el.value; return render();}
   if(el.id==="budgetIn"){setBudget(+el.value||null); save(); return;}
-  if(el.id==="mealsN"){const n=+el.value; const keys=MEALKEYS[n]; const byK=Object.fromEntries(S.meals.map(m=>[m.k,m])); S.meals=keys.map(k=>byK[k]||{k,t:MEALTIME[k],items:[]}); S.example=false; return render();}
+  if(el.id==="mealsN"){const n=+el.value; syncWeek(); buildPlan(n); render(); toast(lastBudgetMsg||t("week_built")); return;}
   if(el.dataset.time!=null){const mi=+el.closest("[data-meal]").dataset.meal; S.meals[mi].t=el.value; return save();}
   const row=el.closest&&el.closest(".it");
   if(row){const mi=+row.dataset.mi, ii=+row.dataset.ii; const it=S.meals[mi].items[ii];
@@ -847,15 +944,26 @@ function foodBlocks(){
       <tr><td>${esc(t("carbs"))}</td><td class="num">${T.C} ${esc(t("g"))}</td><td class="num">${r0(D.c)} ${esc(t("g"))}</td></tr>
       <tr><td>${esc(t("fat"))}</td><td class="num">${T.F} ${esc(t("g"))}</td><td class="num">${r0(D.f)} ${esc(t("g"))}</td></tr>
       <tr><td>${esc(t("day_cost"))}</td><td class="num">${FLAG.sa} ${esc(money(dayTotals("sa").cost,"sa"))}</td><td class="num">${FLAG.eg} ${esc(money(dayTotals("eg").cost,"eg"))}</td></tr></tbody></table></div>`);
-  S.meals.forEach(m=>{
-    const s=sumItems(m.items); const tips=m.items.length?mealTips(m):[];
-    b.push(`<div class="rb"><h3>${esc(t("meal_"+m.k))} <span class="num" style="font-weight:400;font-size:12px;color:#5A6D61">${esc(m.t||"")}</span></h3>
-      <table class="rt"><thead><tr><th>${esc(t("food"))}</th><th>${esc(t("amount"))}</th><th>${esc(t("method"))}</th><th>${esc(t("kcal"))}</th><th>P / C / F</th><th>${esc(t("meal_cost"))}</th></tr></thead><tbody>
-      ${m.items.map(it=>{const f=F[it.f],x=calcItem(it); return `<tr><td><img src="${fimg(f.img)}" alt="">${esc(nm(f))}</td><td class="num">${it.g}${f.u?` (≈${r1(it.g/f.u)} ${esc(f.un[S.lang]||f.un.en)})`:""}</td><td>${esc(nm(PI.methods[it.m]))}</td><td class="num">${fmt(x.k)}</td><td class="num">${r0(x.p)} / ${r0(x.c)} / ${r0(x.f)}</td><td class="num">${esc(money(x.cost))}</td></tr>`;}).join("")}
-      <tr style="font-weight:700"><td>${esc(t("meal_total"))}</td><td></td><td></td><td class="num">${fmt(s.k)}</td><td class="num">${r0(s.p)} / ${r0(s.c)} / ${r0(s.f)}</td><td class="num">${esc(money(s.cost))}</td></tr></tbody></table>
-      ${tips.map(x=>`<div class="rtip">${esc(x.s)}</div>`).join("")}</div>`);
+  syncWeek();
+  {const tots=S.week.map(ms=>sumItems(ms.flatMap(m=>m.items))); const wk=tots.reduce((a,x)=>a+x.cost,0);
+   b.push(`<div class="rb"><h2>${esc(t("week_title"))} · ${esc(t("tier_"+(S.p.tierUsed||S.p.tier||"std")))}</h2>
+    <table class="rt"><thead><tr><th></th><th>${esc(t("kcal"))}</th><th>P / C / F</th><th>${esc(t("meal_cost"))}</th><th>${esc(t("week_main"))}</th></tr></thead><tbody>
+    ${S.week.map((ms,i)=>`<tr><td style="font-weight:700">${esc(wdName(i))}${S.gym.wd.includes(i)?" 🏋":""}</td><td class="num">${fmt(tots[i].k)}</td><td class="num">${r0(tots[i].p)} / ${r0(tots[i].c)} / ${r0(tots[i].f)}</td><td class="num">${esc(money(tots[i].cost))}</td><td>${esc(dayHeadline(ms))}</td></tr>`).join("")}
+    <tr style="font-weight:700"><td>${esc(t("week_total"))}</td><td></td><td></td><td class="num">${esc(money(wk))}</td><td class="num">≈ ${esc(money(wk/7*30))} ${esc(t("per_month"))}</td></tr></tbody></table></div>`);}
+  S.week.forEach((ms,i)=>{
+    const s=sumItems(ms.flatMap(m=>m.items));
+    b.push(`<div class="rb"><h3>${esc(wdName(i))} <span class="num" style="font-weight:400;font-size:12px;color:#5A6D61">${fmt(s.k)} ${esc(t("kcal"))} · P ${r0(s.p)} · ${esc(money(s.cost))}</span></h3>
+      <table class="rt"><thead><tr><th>${esc(t("meal"))}</th><th>${esc(t("food"))}</th><th>${esc(t("amount"))}</th><th>${esc(t("method"))}</th><th>${esc(t("kcal"))}</th><th>${esc(t("meal_cost"))}</th></tr></thead><tbody>
+      ${ms.map(m=>m.items.map((it,ii)=>{const f=F[it.f],x=calcItem(it); return `<tr>${ii===0?`<td rowspan="${m.items.length}" style="font-weight:700;vertical-align:top">${esc(t("meal_"+m.k))}<br><span class="num" style="font-weight:400;color:#5A6D61">${esc(m.t||"")}</span></td>`:""}<td><img src="${fimg(f.img)}" alt="">${esc(nm(f))}</td><td class="num">${it.g}${f.u?` (≈${r1(it.g/f.u)} ${esc(f.un[S.lang]||f.un.en)})`:""}</td><td>${esc(nm(PI.methods[it.m]))}</td><td class="num">${fmt(x.k)}</td><td class="num">${esc(money(x.cost))}</td></tr>`;}).join("")).join("")}
+      </tbody></table></div>`);
   });
-  {const tot=microDay(), R=rdaSet(); b.push(`<div class="rb"><h3>${esc(t("micro_title"))} · ${esc(t("tier_"+(S.p.tierUsed||S.p.tier||"std")))}${getBudget()?` · ${esc(t("budget_label"))}: ${esc(money(getBudget()))}`:""}</h3><table class="rt"><tbody>${[0,1,2,3].map(r=>`<tr>${PI.nutKeys.slice(r*3,r*3+3).map(k=>{const i=PI.nutKeys.indexOf(k); return `<td>${esc(nm(PI.nutName[k]))}</td><td class="num" dir="ltr">${esc(fmtN(tot[i],k))} (${Math.round(tot[i]/R[k]*100)}%)</td>`;}).join("")}</tr>`).join("")}</tbody></table></div>`);}
+  {const agg={}; let oil=0; S.week.forEach(ms=>ms.forEach(m=>m.items.forEach(it=>{const f=F[it.f]; if(!f) return; agg[f.id]=(agg[f.id]||0)+(+it.g||0); oil+=calcItem(it).add;})));
+   const order=["protein","carb","veg","fruit","fat","extra"]; const ids=Object.keys(agg).sort((a,b)=>order.indexOf(F[a].cat)-order.indexOf(F[b].cat));
+   const cell=id=>{const f=F[id], buy=agg[id]/f.y; const q=f.u&&f.u>=30&&f.y===1?`${fmt(Math.ceil(buy/f.u))} ${esc(f.un[S.lang]||f.un.en)}`:buy>=1000?`${r1(buy/1000)} ${esc(t("kg"))}`:`${fmt(Math.ceil(buy/10)*10)} ${esc(t("g"))}`; return `<td>${esc(nm(f))}</td><td class="num">${q}</td><td class="num">${esc(money(buy*priceOf(f)/1000))}</td>`;};
+   const rows=[]; for(let i=0;i<ids.length;i+=2) rows.push(`<tr>${cell(ids[i])}${ids[i+1]?cell(ids[i+1]):"<td></td><td></td><td></td>"}</tr>`);
+   if(oil>0) rows.push(`<tr><td>${esc(t("cook_oil"))}</td><td class="num">${fmt(Math.ceil(oil/10)*10)} ${esc(t("g"))}</td><td class="num">${esc(money(oil*PI.cookOil[S.country]/1000))}</td><td></td><td></td><td></td></tr>`);
+   b.push(`<div class="rb"><h3>${esc(t("shop_title"))} · <span class="num">${esc(money(weekAvgCost(S.week)*7))}</span></h3><p style="margin:0 0 6px;font-size:10.5px">${esc(t("shop_note"))}</p><table class="rt"><tbody>${rows.join("")}</tbody></table></div>`);}
+  {const tot=PI.nutKeys.map(()=>0); S.week.forEach(ms=>ms.forEach(m=>m.items.forEach(it=>{const v=microOf(it); if(v) v.forEach((x,i)=>tot[i]+=x/7);}))); const R=rdaSet(); b.push(`<div class="rb"><h3>${esc(t("micro_title"))} · ${esc(t("week_avg_day"))} · ${esc(t("tier_"+(S.p.tierUsed||S.p.tier||"std")))}${getBudget()?` · ${esc(t("budget_label"))}: ${esc(money(getBudget()))}`:""}</h3><table class="rt"><tbody>${[0,1,2,3].map(r=>`<tr>${PI.nutKeys.slice(r*3,r*3+3).map(k=>{const i=PI.nutKeys.indexOf(k); return `<td>${esc(nm(PI.nutName[k]))}</td><td class="num" dir="ltr">${esc(fmtN(tot[i],k))} (${Math.round(tot[i]/R[k]*100)}%)</td>`;}).join("")}</tr>`).join("")}</tbody></table></div>`);}
   if(PI.body&&PI.body.pdfBlock){const bb=PI.body.pdfBlock(); if(bb) b.splice(1,0,bb);}
   const fnote=isPreg()?t("preg_note",{add:T.add,p:T.P}):isPost()?(p.bf?t("post_bf_note"):t("post_note")):"";
   if(fnote) b.splice(1,0,`<div class="rb" style="background:#FFF2C7;border:0"><p style="margin:0">${esc(fnote)}</p></div>`);
@@ -915,5 +1023,6 @@ async function exportPdf(kind){
 }
 
 PI.app={get S(){return S;},t,esc,fmt,nm,r1,render,targets,buildPlan,toast,use,fimg,WD_PATTERN,gymDays,MEALKEYS,save,setTab,bodyMap};
+ensureWeek();
 render();
 })();
