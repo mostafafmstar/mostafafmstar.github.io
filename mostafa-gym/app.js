@@ -371,11 +371,13 @@ function addFocus(ex,dayUsed,used,key,rep){
   const focus=S.gym.focus||[]; if(!focus.length) return;
   const slots=TEMPL[key]||[]; const has=m=>slots.some(s=>s[0]===m);
   const lowerDay=slots.some(s=>["quads","hamstrings","glutes"].includes(s[0])), upperDay=slots.some(s=>["chest","back","shoulders","biceps","triceps"].includes(s[0]));
+  let added=0;
   focus.forEach(m=>{
+    if(added>=3) return;
     const leg=["quads","hamstrings","glutes","adductors","abductors","calves"].includes(m);
     if(!(has(m)||(leg&&lowerDay&&!upperDay)||(!leg&&upperDay&&!lowerDay)||key[0]==="f")) return;
     const id0=pickEx(m,"i",rep+2,S.gym.eq,new Set([...dayUsed])); if(!id0) return; const id=finalId(id0,dayUsed); if(dayUsed.has(id)) return;
-    dayUsed.add(id); used.add(id); ex.push(Object.assign({id,focus:1},pyramid(dose(id,S.gym.gg,S.gym.level,3),id)));
+    dayUsed.add(id); used.add(id); added++; ex.push(Object.assign({id,focus:1},pyramid(dose(id,S.gym.gg,S.gym.level,3),id)));
   });
 }
 function buildGeneral(){
@@ -454,6 +456,184 @@ function bodyMap(prim,sec,w){
 }
 function muscleThumb(g,w){const m=PI.muscles[g]; if(!m||!m.c) return `<img src="img/food/person_running.webp" alt="" style="width:${w*.8}px;height:${w*.8}px">`; return fig(m.v,m.o,[],m.c,w);}
 
+
+/* ---------------- detailed goal: target weight, body zones, projection ---------------- */
+const normAr=x=>String(x||"").toLowerCase().replace(/[ً-ْـ]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").replace(/ؤ/g,"و").replace(/ئ/g,"ي");
+function parseZones(text){
+  const has=(sg,list)=>list.some(k=>sg.includes(normAr(k)));
+  const segs=(" "+normAr(text)+" ").split(/[،,;:\n+\/]|\sو|\band\b|\s&\s|\.\s/).map(x=>x.trim()).filter(Boolean);
+  const out=new Set(); let last=null;
+  segs.forEach(sg=>{
+    let dir=has(sg,PI.zoneVerbs.gain)?"gain":has(sg,PI.zoneVerbs.lose)?"lose":null;
+    if(has(sg,PI.zones.abs_def.kw)){out.add("abs_def"); last=dir||last||"gain"; return;}
+    const cand=Object.keys(PI.zones).filter(k=>k!=="abs_def"&&has(sg,PI.zones[k].kw));
+    if(!dir) dir=last;
+    if(!cand.length){ if(dir) last=dir; return; }
+    if(!dir) dir=cand.every(k=>PI.zones[k].dir==="lose")?"lose":"gain";
+    let pick=cand.filter(k=>PI.zones[k].dir===dir);
+    if(!pick.length){ if(dir==="gain"&&cand.includes("belly")) pick=["abs_def"]; else pick=cand; }
+    pick.forEach(k=>out.add(k)); last=dir;
+  });
+  return [...out];
+}
+const zonesOf=()=>(S.p.zones||[]).filter(z=>PI.zones[z]);
+function zoneFocus(zs){const lists=zs.map(z=>PI.zones[z].m); const out=[]; for(let i=0;i<4;i++) lists.forEach(l=>{if(l[i]&&!out.includes(l[i])&&out.length<4) out.push(l[i]);}); return out;}
+function deriveGoal(){
+  const p=S.p, w=+p.w, tw=+p.tw, zs=zonesOf();
+  const lose=zs.some(z=>PI.zones[z].dir==="lose"), gain=zs.some(z=>PI.zones[z].dir==="gain"&&z!=="abs_def"), abs=zs.includes("abs_def");
+  const bmiNow=w/((p.h/100)**2);
+  if(tw>0){ const d=tw-w;
+    if(d<=-1.5) return (gain&&d>-6)?"recomp":"fat_loss";
+    if(d>=1.5) return bmiNow<18.5?"weight_gain":(d>=8&&!lose?"bulk":"lean_gain");
+    return (gain&&!lose&&!abs)?"lean_gain":"recomp";
+  }
+  if(abs&&!gain&&!lose) return "cut";
+  if(lose&&gain) return "recomp"; if(lose||abs) return "fat_loss"; if(gain) return bmiNow>27?"recomp":"lean_gain";
+  return p.goal;
+}
+function tAt(w){const o=S.p.w; S.p.w=w; const T=targets(); S.p.w=o; return T;}
+/* week-by-week simulation under the current calorie target; weight changes feed back into BMR/TDEE */
+function project(tw,maxW){
+  const p=S.p; let w=+p.w; const dir=Math.sign(tw-w); const series=[w]; let capped=false, first=null;
+  const lossCap=(isPost()&&p.bf)?0.5:Infinity;
+  for(let k=0;k<(maxW||156);k++){
+    const T=tAt(w); let dw=(T.kcal-T.tdee)*7/7700;
+    if(dw<0){const cap=Math.min(w*.01,lossCap); if(-dw>cap){dw=-cap; capped=true;}}
+    else {const cap=w*.005; if(dw>cap){dw=cap; capped=true;}}
+    if(first===null) first=dw;
+    if(dir===0||Math.sign(dw)!==dir||Math.abs(dw)<0.03) return {ok:false,first,series};
+    w+=dw; if((dir<0&&w<=tw)||(dir>0&&w>=tw)){series.push(tw); return {ok:true,weeks:k+1,first,series,capped};}
+    series.push(w);
+  }
+  return {ok:false,first,series,long:true};
+}
+const LOCALE={ar:"ar-EG",en:"en-GB",hi:"hi-IN",bn:"bn-BD"};
+function fmtMonth(d){try{return new Intl.DateTimeFormat(LOCALE[S.lang]+"-u-ca-gregory-nu-latn",{month:"long",year:"numeric"}).format(d);}catch(e){return d.toISOString().slice(0,7);}}
+const addWeeks=n=>new Date(Date.now()+n*7*864e5);
+function bodyPbf(){const c=S.body&&S.body.cur; return c&&+c.pbf>0?+c.pbf:0;}
+function zoneEtas(){
+  const zs=zonesOf(); if(!zs.length) return [];
+  const w=+S.p.w; const lv=S.gym.level||"int"; const [a,b]={beg:[6,10],int:[8,12],adv:[12,16]}[lv]||[8,12];
+  const lines=[]; const loseZ=zs.filter(z=>PI.zones[z].dir==="lose"), gainZ=zs.filter(z=>PI.zones[z].dir==="gain"&&z!=="abs_def");
+  if(loseZ.length){ const kg=r1(w*.04); const pr=project(w-kg); const names=loseZ.map(z=>nm(PI.zones[z])).join("، ");
+    lines.push(pr.ok?t("zone_eta_lose",{z:names,kg,w:pr.weeks}):t("zone_eta_lose_nw",{z:names})); }
+  if(gainZ.length) lines.push(t("zone_eta_gain",{z:gainZ.map(z=>nm(PI.zones[z])).join("، "),a,b}));
+  if(zs.includes("abs_def")){ const goalP=S.p.sex==="f"?20:12; const pbf=bodyPbf(); const z=nm(PI.zones.abs_def);
+    if(!pbf) lines.push(t("zone_eta_abs_nopbf",{z,p:goalP}));
+    else if(pbf<=goalP+1) lines.push(t("zone_eta_abs_near",{z,c:r1(pbf)}));
+    else { const kg=r1(w*(pbf-goalP)/100/.85); const pr=project(w-kg); lines.push(pr.ok?t("zone_eta_abs",{z,p:goalP,c:r1(pbf),kg,w:pr.weeks}):t("zone_eta_lose_nw",{z})); } }
+  return lines;
+}
+function etaChart(series,tw){
+  const W=600,H=150,P=34; const n=series.length-1; if(n<1) return "";
+  const lo=Math.min(...series,tw)-1, hi=Math.max(...series,tw)+1;
+  const X=i=>P+(W-2*P)*i/n, Y=v=>12+(H-40)*(hi-v)/(hi-lo);
+  const pts=series.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const step=n>40?Math.round(n/26)*4.345:4.345; const ticks=[]; for(let x=step;x<n;x+=step) ticks.push(x);
+  const down=series[n]<series[0];
+  return `<div class="etachart" dir="ltr"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("eta_title"))}">
+    ${ticks.map((x,i)=>`<line x1="${X(x)}" x2="${X(x)}" y1="10" y2="${H-26}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${X(x)}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--muted)">${Math.round(x/4.345)}</text>`).join("")}
+    <line x1="${P}" x2="${W-P}" y1="${Y(tw)}" y2="${Y(tw)}" stroke="${down?"var(--leaf)":"var(--sea)"}" stroke-dasharray="6 5" opacity=".6"/>
+    <polyline points="${pts}" fill="none" stroke="${down?"var(--leaf)":"var(--sea)"}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${X(0)}" cy="${Y(series[0])}" r="5" fill="var(--sun)"/><circle cx="${X(n)}" cy="${Y(series[n])}" r="5.5" fill="${down?"var(--leaf)":"var(--sea)"}"/>
+    <text x="${X(0)}" y="${Y(series[0])+(down?-10:18)}" font-size="12" font-weight="700" fill="var(--ink)">${r1(series[0])}</text>
+    <text x="${X(n)}" y="${Y(series[n])+(down?18:-10)}" text-anchor="end" font-size="12" font-weight="700" fill="var(--ink)">${r1(series[n])}</text>
+  </svg><p class="cap" dir="${PI.langs[S.lang].dir}">${esc(t("chart_cap"))}</p></div>`;
+}
+function etaInfo(){
+  const p=S.p, w=+p.w, tw=+p.tw;
+  if(isPreg()) return {kind:"preg"};
+  if(!(tw>0)) return {kind:"none"};
+  if(Math.abs(tw-w)<0.5) return {kind:"reached"};
+  const pr=project(tw); return Object.assign({kind:pr.ok?"ok":pr.long?"long":"unreach"},pr);
+}
+function etaCard(){
+  const p=S.p, tw=+p.tw; const T=targets(); const E=etaInfo(); let body="";
+  if(E.kind==="preg") body=`<p>${esc(t("preg_tw"))}</p>`;
+  else if(E.kind==="none") body=`<p class="sub">${esc(t("eta_noweight"))}</p>`;
+  else if(E.kind==="reached") body=`<p>${esc(t("eta_reached"))}</p>`;
+  else if(E.kind!=="ok") body=`<div class="tipbox warn">${esc(E.kind==="long"?t("eta_long"):t("eta_unreach",{kcal:fmt(T.kcal),tw}))}</div>`;
+  else { const wk=E.weeks; const ms=[]; for(let k=4;k<wk&&ms.length<6;k+=wk>30?8:4) ms.push(k);
+    body=`<div class="kpis eta">
+      <div class="kpi hl"><span>${esc(t("eta_time"))}</span><b class="num">${esc(t("eta_weeks",{w:wk}))}</b><i>${esc(t("eta_months",{m:r1(wk/4.345)}))}</i></div>
+      <div class="kpi"><span>${esc(t("eta_arrive"))}</span><b>${esc(fmtMonth(addWeeks(wk)))}</b><i>${esc(t("eta_rate",{r:r1(Math.abs(E.first))}))}</i></div>
+      <div class="kpi"><span>${esc(t("eta_now"))} → ${esc(t("eta_target"))}</span><b class="num">${p.w} → ${tw} ${esc(t("kg"))}</b><i class="num">${tw<p.w?"−":"+"}${r1(Math.abs(tw-p.w))} ${esc(t("kg"))}</i></div></div>
+      ${etaChart(E.series,tw)}
+      ${ms.length?`<div class="miles">${ms.map(k=>`<span><b class="num">${r1(E.series[k])} ${esc(t("kg"))}</b>${esc(t("eta_after",{w:k}))}</span>`).join("")}</div>`:""}
+      ${E.capped?`<p class="sub" style="margin:8px 0 0">${esc(t("eta_cap_note"))}</p>`:""}`; }
+  const zl=zoneEtas();
+  return `<section class="card"><h3><img src="img/food/stopwatch.webp" alt="">${esc(t("eta_title"))}</h3>${body}
+    ${zl.length?`<h4 style="margin-top:14px">${esc(t("eta_zones"))}</h4><ul class="zeta">${zl.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    ${E.kind!=="preg"?`<p class="note" style="margin-top:10px">${esc(t("eta_assume"))}</p>`:""}</section>`;
+}
+function goalDetailCard(){
+  const p=S.p, zs=zonesOf(), preg=isPreg(); const w=+p.w, tw=+p.tw;
+  const zb=k=>{const z=PI.zones[k]; return `<button class="zbtn ${z.dir}" data-zone="${k}" aria-pressed="${zs.includes(k)}">${muscleThumb(z.th,52)}<span>${esc(nm(z))}</span></button>`;};
+  const L=Object.keys(PI.zones).filter(k=>PI.zones[k].dir==="lose"), G=Object.keys(PI.zones).filter(k=>PI.zones[k].dir==="gain");
+  const bmiT=tw>0?tw/((p.h/100)**2):0;
+  const sug=preg?null:deriveGoal(); const cur=p.goal; const curG=PI.goals[cur];
+  const mism=!preg&&tw>0&&Math.abs(tw-w)>=1.5&&((tw<w&&curG.kf>=1)||(tw>w&&curG.kf<1));
+  return `<section class="card" id="goalCard"><h3><img src="img/food/bullseye.webp" alt="">${esc(t("goal_detail"))}</h3>
+    <div class="grid2">
+      <label class="f" for="pTw">${esc(t("target_w"))}<span class="unitbox"><input class="in num" id="pTw" data-p="tw" type="number" inputmode="decimal" min="35" max="250" step="0.5" value="${tw>0?tw:""}" placeholder="${Math.round(w-(w>80?8:4))}" ${preg?"disabled":""}><i>${esc(t("kg"))}</i></span></label>
+      <div class="twinfo">${tw>0?`<b class="num ${tw<w?"down":"up"}">${tw<w?"−":"+"}${r1(Math.abs(tw-w))} ${esc(t("kg"))}</b><span class="sub num">BMI ${r1(w/((p.h/100)**2))} → ${r1(bmiT)}</span>`:`<span class="sub">${esc(t("target_w_hint"))}</span>`}</div>
+    </div>
+    ${preg?`<div class="tipbox" style="margin-top:10px">${esc(t("preg_tw"))}</div>`:""}
+    ${bmiT&&bmiT<18.5?`<div class="tipbox warn" style="margin-top:10px">${esc(t("bmi_low_warn",{b:r1(bmiT)}))}</div>`:""}
+    <h4 style="margin-top:16px"><span class="zdot lose"></span>${esc(t("zones_lose"))}</h4><div class="zgrid">${L.map(zb).join("")}</div>
+    <h4 style="margin-top:14px"><span class="zdot gain"></span>${esc(t("zones_gain"))}</h4><div class="zgrid">${G.map(zb).join("")}</div>
+    <label class="f" for="zoneText" style="margin-top:14px">${esc(t("zones_text"))}
+      <span class="row" style="gap:8px;flex-wrap:nowrap"><input class="in" id="zoneText" type="text" value="${esc(p.goalText||"")}" placeholder="${esc(t("zones_text_ph"))}" style="flex:1;min-width:0"><button class="btn" data-zparse>${esc(t("zones_parse"))}</button></span></label>
+    <div class="tipbox" style="margin-top:12px">${esc(t("spot_note"))}</div>
+    ${preg?"":`<div class="applyrow">
+      <p>${esc(t("goal_suggest",{goal:nm(PI.goals[sug])}))}${zs.length?` · ${esc(t("p_focus"))}: ${esc(zoneFocus(zs).map(m=>nm(PI.muscles[m])).join("، "))}`:""}</p>
+      ${mism?`<p class="warn">${esc(t("goal_mismatch",{goal:nm(curG)}))}</p>`:""}
+      <button class="btn pri" data-goalapply><img src="img/food/sparkles.webp" alt="">${esc(t("goal_apply"))}</button></div>`}
+  </section>`;
+}
+function applyGoal(){
+  if(isPreg()){toast(t("preg_tw")); return;}
+  const g=deriveGoal(); const G=PI.goals[g]; const zs=zonesOf(); const focus=zoneFocus(zs);
+  S.p.goal=g; S.p.mode="auto"; S.p.link=true;
+  S.gym.gg=(zs.some(z=>PI.zones[z].dir==="gain")&&g!=="fat_loss")?"hypertrophy":G.gym;
+  S.gym.focus=focus;
+  if(zs.some(z=>PI.zones[z].dir==="lose")||g==="fat_loss"||g==="cut") S.gym.cardioMin=Math.max(+S.gym.cardioMin||0,25);
+  if(S.gym.wd.length<G.days) S.gym.wd=WD_PATTERN[G.days].slice();
+  if(S.gym.mode==="library") S.gym.mode="general";
+  if(S.gym.mode==="custom"&&focus.length) S.gym.muscles=[...new Set(S.gym.muscles.concat(focus))];
+  buildPlan(Math.max(4,S.meals.length)); render();
+  const T=targets(); const E=etaInfo();
+  toast(t("goal_applied",{goal:nm(G),kcal:fmt(T.kcal),days:S.gym.wd.length,focus:focus.length?focus.map(m=>nm(PI.muscles[m])).join("، "):"—"})+(E.kind==="ok"?" "+t("eta_weeks_short",{w:E.weeks}):""),8000);
+}
+function goalStrip(){
+  const p=S.p, zs=zonesOf(), tw=+p.tw; if(!(tw>0)&&!zs.length) return "";
+  const parts=[]; if(tw>0) parts.push(`${p.w} → ${tw} ${t("kg")}`);
+  const L=zs.filter(z=>PI.zones[z].dir==="lose").map(z=>nm(PI.zones[z])), G=zs.filter(z=>PI.zones[z].dir==="gain").map(z=>nm(PI.zones[z]));
+  if(L.length) parts.push(t("dir_lose")+": "+L.join("، ")); if(G.length) parts.push(t("dir_gain")+": "+G.join("، "));
+  const E=etaInfo(); if(E.kind==="ok") parts.push(t("eta_weeks_short",{w:E.weeks}));
+  return `<div class="banner goalstrip"><img src="img/food/bullseye.webp" alt=""><p><b>${esc(t("goal_line"))}</b> ${esc(parts.join(" · "))}</p><button class="btn sm" data-tab="profile">${esc(t("goal_edit"))}</button></div>`;
+}
+function focusCard(){
+  const f=S.gym.focus||[]; if(!f.length) return ""; const zs=zonesOf(); const used=new Set();
+  const rows=f.filter(m=>PI.muscles[m]).map(m=>{const ids=[]; for(let k=0;k<6&&ids.length<3;k++){const id=pickEx(m,"i",k,S.gym.eq,new Set([...used,...ids])); if(id&&!ids.includes(id)) ids.push(id);} ids.forEach(i=>used.add(i));
+    return `<div class="frow"><div class="fm">${muscleThumb(m,46)}<b>${esc(nm(PI.muscles[m]))}</b></div><div class="fex">${ids.map(id=>`<span class="fx"><img class="f1" src="${exImg(id)}" alt="" loading="lazy"><span>${esc(nm(PI.ex[id]))}</span></span>`).join("")}</div></div>`;}).join("");
+  return `<section class="card"><h3><img src="img/food/flexed_biceps.webp" alt="">${esc(zs.length?t("focus_from_goal"):t("p_focus"))}</h3>
+    <p class="sub" style="margin-top:-4px">${esc(t("focus_from_goal_d"))}</p>${rows}</section>`;
+}
+function goalBlock(){
+  const p=S.p, zs=zonesOf(), tw=+p.tw; if(!(tw>0)&&!zs.length) return "";
+  const E=etaInfo(); const L=zs.filter(z=>PI.zones[z].dir==="lose").map(z=>nm(PI.zones[z])), G=zs.filter(z=>PI.zones[z].dir==="gain").map(z=>nm(PI.zones[z]));
+  const rows=[];
+  if(tw>0) rows.push([t("target_w"),`${p.w} → ${tw} ${t("kg")} (${tw<p.w?"−":"+"}${r1(Math.abs(tw-p.w))})`]);
+  if(L.length) rows.push([t("zones_lose"),L.join("، ")]); if(G.length) rows.push([t("zones_gain"),G.join("، ")]);
+  if((S.gym.focus||[]).length) rows.push([t("p_focus"),S.gym.focus.map(m=>nm(PI.muscles[m])).join("، ")]);
+  if(E.kind==="ok") rows.push([t("eta_time"),`${t("eta_weeks",{w:E.weeks})} (${t("eta_months",{m:r1(E.weeks/4.345)})}) · ${fmtMonth(addWeeks(E.weeks))} · ${t("eta_rate",{r:r1(Math.abs(E.first))})}`]);
+  else if(E.kind==="unreach"||E.kind==="long") rows.push([t("eta_time"),E.kind==="long"?t("eta_long"):t("eta_unreach",{kcal:fmt(targets().kcal),tw})]);
+  const zl=zoneEtas();
+  return `<div class="rb"><h3>${esc(t("goal_detail"))}</h3><table class="rt"><tbody>${rows.map(([a,b])=>`<tr><td style="width:130px;font-weight:700">${esc(a)}</td><td>${esc(b)}</td></tr>`).join("")}</tbody></table>
+    ${zl.map(x=>`<div class="rtip">${esc(x)}</div>`).join("")}<div class="rtip" style="background:#FFF2C7">${esc(t("spot_note"))}</div></div>`;
+}
+
 /* ---------------- header / chrome ---------------- */
 function applyChrome(){
   const L=PI.langs[S.lang]; document.documentElement.lang=S.lang; document.documentElement.dir=L.dir;
@@ -530,6 +710,8 @@ function renderProfile(){
       ${p.mode==="manual"?`<label class="f" for="pKcal" style="width:180px">${esc(t("manual_kcal"))}<span class="unitbox"><input class="in num" id="pKcal" data-p="kcal" type="number" min="1000" max="6000" step="50" value="${p.kcal}"><i>${esc(t("kcal"))}</i></span></label>`:""}
     </div>
   </section>
+  ${goalDetailCard()}
+  ${etaCard()}
   <section class="card"><h3><img src="img/food/fire.webp" alt="">${esc(t("daily_target"))}</h3>
     <div class="kpis">
       <div class="kpi"><span>${esc(t("bmr"))}</span><b class="num">${fmt(T.bmr)}</b><i>${esc(t("bmr_note"))}</i></div>
@@ -665,6 +847,7 @@ function renderFood(){
     <td><input class="in num" data-price="${f.id}" data-c="eg" type="number" step="1" min="0" value="${o.eg??f.eg}"> <span class="src ${f.es?"s":"e"}">${esc(t(f.es?"sourced":"estimated"))}</span></td></tr>`;}).join("");
   return `
   ${S.example?`<div class="banner"><img src="img/food/clipboard.webp" alt=""><p>${esc(t("example_note"))}</p></div>`:""}
+  ${goalStrip()}
   <section class="card"><div class="toolbar">
     <label class="f" for="mealsN">${esc(t("meals_count"))}<select class="in" id="mealsN" style="width:110px">${[3,4,5,6].map(k=>`<option ${k===n?"selected":""}>${k}</option>`).join("")}</select></label>
     <button class="btn pri" data-auto><img src="img/food/sparkles.webp" alt="">${esc(t("auto_plan"))}</button>
@@ -756,6 +939,7 @@ function renderGym(){
   if(g.mode==="library") return `${care?`<div class="banner care"><img src="${fimg(isPreg()?"seedling":"glass_of_milk")}" alt=""><p>${esc(care)}</p></div>`:""}<section class="card">${modes}<p class="sub" style="margin:0">${esc(t("lib_desc"))}</p></section>${renderLibrary()}`;
   return `
   ${care?`<div class="banner care"><img src="${fimg(isPreg()?"seedling":"glass_of_milk")}" alt=""><p>${esc(care)}</p></div>`:""}
+  ${goalStrip()}
   <section class="card">${modes}
     <h3><img src="img/food/calendar.webp" alt="">${esc(t("pick_days"))}</h3>
     <div class="days">${dayBtns}</div><div class="row" style="margin-top:8px">${quick}</div>
@@ -773,6 +957,7 @@ function renderGym(){
       <h3 style="margin-top:16px"><img src="img/food/fire.webp" alt="">${esc(t("load"))}</h3>
       <div class="load"><input type="range" id="loadR" min="1" max="5" step="1" value="${g.load}" aria-label="${esc(t("load"))}"><b>${esc(t("load_"+g.load))}</b></div>`:""}
   </section>
+  ${focusCard()}
   ${warn?`<div class="banner"><p>${esc(warn)}</p></div>`:`
   <section class="card"><h3><img src="img/food/calendar.webp" alt="">${esc(t("your_week"))}</h3>
     <div class="week">${wdn.map((d,i)=>{const pd=prog.find(x=>x.wd===i); return `<div class="wk ${pd?"on":""}"><b>${esc(d)}</b><span>${esc(pd?pd.title:t("rest_day"))}</span></div>`;}).join("")}</div>
@@ -813,6 +998,9 @@ document.addEventListener("click",async ev=>{
   if(d.bf){S.p.bf=d.bf==="1"; return render();}
   if(d.sty){S.gym.sty=d.sty; return render();}
   if(d.goal){S.p.goal=d.goal; return render();}
+  if(d.zone){const z=d.zone, a=S.p.zones||[]; S.p.zones=a.includes(z)?a.filter(x=>x!==z):a.concat(z); return render();}
+  if(d.zparse!=null){const v=($("#zoneText")||{}).value||""; S.p.goalText=v; const z=parseZones(v); if(z.length){S.p.zones=z; render(); toast(t("zones_parsed",{z:z.map(k=>nm(PI.zones[k])).join("، ")}),6000);} else {render(); toast(t("zones_none"));} return;}
+  if(d.goalapply!=null) return applyGoal();
   if(d.mode){S.p.mode=d.mode; return render();}
   if(d.link==="food2gym"){const G=PI.goals[S.p.goal]; S.gym.gg=G.gym; S.gym.wd=WD_PATTERN[G.days].slice(); S.gym.mode="general"; S.tab="gym"; render(); toast(t("linked_gym_done",{gym:t("gg_"+G.gym),days:G.days,goal:nm(G)})); return;}
   if(d.link==="gym2food"){const map={hypertrophy:"lean_gain",strength:"lean_gain",fatburn:"fat_loss",endurance:"endurance",tone:"cut"}; S.p.goal=map[S.gym.gg]||"recomp"; S.p.link=true; S.p.mode="auto";
@@ -851,6 +1039,7 @@ document.addEventListener("click",async ev=>{
 });
 document.addEventListener("input",ev=>{
   const el=ev.target;
+  if(el.id==="zoneText"){S.p.goalText=el.value; save(); return;}
   if(el.dataset.p){const k=el.dataset.p; S.p[k]=el.type==="number"?+el.value:el.value; renderHero(); renderRail(); clearTimeout(el._t); el._t=setTimeout(()=>{if(S.tab==="profile"){const pos=el.id; render(); const n=document.getElementById(pos); if(n){n.focus(); try{const L=String(n.value).length; n.setSelectionRange&&n.type!=="number"&&n.setSelectionRange(L,L);}catch(e){}}}},700); save(); return;}
   const row=el.closest&&el.closest(".it");
   if(row&&el.dataset.k==="g"){const mi=+row.dataset.mi, ii=+row.dataset.ii; S.meals[mi].items[ii].g=+el.value||0; S.example=false; refreshMealNums(mi); save(); return;}
@@ -944,6 +1133,7 @@ function foodBlocks(){
       <tr><td>${esc(t("carbs"))}</td><td class="num">${T.C} ${esc(t("g"))}</td><td class="num">${r0(D.c)} ${esc(t("g"))}</td></tr>
       <tr><td>${esc(t("fat"))}</td><td class="num">${T.F} ${esc(t("g"))}</td><td class="num">${r0(D.f)} ${esc(t("g"))}</td></tr>
       <tr><td>${esc(t("day_cost"))}</td><td class="num">${FLAG.sa} ${esc(money(dayTotals("sa").cost,"sa"))}</td><td class="num">${FLAG.eg} ${esc(money(dayTotals("eg").cost,"eg"))}</td></tr></tbody></table></div>`);
+  {const gb=goalBlock(); if(gb) b.push(gb);}
   syncWeek();
   {const tots=S.week.map(ms=>sumItems(ms.flatMap(m=>m.items))); const wk=tots.reduce((a,x)=>a+x.cost,0);
    b.push(`<div class="rb"><h2>${esc(t("week_title"))} · ${esc(t("tier_"+(S.p.tierUsed||S.p.tier||"std")))}</h2>
@@ -970,13 +1160,14 @@ function foodBlocks(){
   b.push(`<div class="rb"><p style="margin:0;font-size:10.5px">${esc(t("price_note"))}</p></div>`);
   return b;
 }
-function gymBlocks(){
+function gymBlocks(solo){
   const prog=program(); const wdn=PI.T.wd[S.lang]||PI.T.wd.en; const b=[];
   b.push(`<div class="rb"><h2>${esc(t(gymModeKey()))} · ${esc(t("gg_"+S.gym.gg))}</h2>
     <div class="rk"><div><span>${esc(t("train_days"))}</span><b class="num">${gymDays()}</b></div><div><span>${esc(t("level"))}</span><b>${esc(t("lvl_"+S.gym.level))}</b></div><div><span>${esc(t("split_label"))}</span><b style="font-size:13px">${esc(t("split_"+(S.gym.split||"auto")))}</b></div><div><span>${esc(t("equipment"))}</span><b style="font-size:14px">${esc(t("eq_"+S.gym.eq))}${S.gym.eq==="gym"?" · "+esc(t("sty_"+(S.gym.sty||"mix"))):""}</b></div><div><span>${esc(t("load"))}</span><b style="font-size:14px">${esc(t("load_"+(S.gym.mode==="custom"?S.gym.load:3)))}</b></div></div>
     <table class="rt" style="margin-top:8px"><tbody>${wdn.map((d,i)=>{const pd=prog.find(x=>x.wd===i); return `<tr><td style="width:90px;font-weight:700">${esc(d)}</td><td>${esc(pd?pd.title:t("rest_day"))}</td></tr>`;}).join("")}</tbody></table>
     ${(isPreg()||isPost())?`<div class="rtip" style="background:#FFE1DB">${esc(t(isPreg()?"preg_gym":"post_gym"))}</div>`:""}
     <div class="rtip">${esc(t("progress_rule"))}</div><div class="rtip" style="background:#FFF2C7">${esc(t(classicOn()?"classic_warm":"warmup"))}</div></div>`);
+  if(solo){const gb=goalBlock(); if(gb) b.push(gb);}
   prog.forEach((d,i)=>{
     const head=`<div class="rday"><b class="num">${i+1}</b><span style="font-weight:700;font-size:14px">${esc(wdn[d.wd])} · ${esc(d.title)}</span></div>`;
     d.ex.forEach((e,ei)=>{const x=PI.ex[e.id]; const mm=exMuscles(e.id); const st=steps(e.id);
@@ -1001,7 +1192,7 @@ async function exportPdf(kind){
     await loadLibs(); await document.fonts.ready;
     let pages=[];
     if(kind==="food"||kind==="all") pages=pages.concat(flow(rep,t("report_food"),foodBlocks()));
-    if(kind==="gym"||kind==="all") pages=pages.concat(flow(rep,t("report_gym"),gymBlocks()));
+    if(kind==="gym"||kind==="all") pages=pages.concat(flow(rep,t("report_gym"),gymBlocks(kind==="gym")));
     pages.forEach((p,i)=>{$("[data-pn]",p).textContent=(i+1)+" / "+pages.length;});
     await Promise.all($$("img",rep).map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r;})));
     const {jsPDF}=window.jspdf; const pdf=new jsPDF({orientation:"p",unit:"mm",format:"a4",compress:true});

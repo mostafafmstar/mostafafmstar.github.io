@@ -313,6 +313,29 @@ footer{color:var(--muted);font-size:.78rem;padding-block:0 30px}
 .dayttl{font-weight:700;color:var(--leaf-ink)}
 details.shop summary{display:flex;align-items:center;gap:8px}details.shop summary img{width:22px;height:22px}
 @media (max-width:720px){.weekstrip{grid-template-columns:repeat(4,minmax(0,1fr))}.wksum{grid-template-columns:1fr 1fr}}
+.zgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-top:8px}
+.zbtn{border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:600;font-size:.8rem;text-align:center;cursor:pointer;color:var(--ink);min-width:0}
+.zbtn span{line-height:1.25}
+.zbtn.lose[aria-pressed="true"]{border-color:var(--tomato);background:var(--tomato-soft)}
+.zbtn.gain[aria-pressed="true"]{border-color:var(--sea);background:var(--sea-soft)}
+.zdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle}.zdot.lose{background:var(--tomato)}.zdot.gain{background:var(--sea)}
+.twinfo{display:flex;flex-direction:column;justify-content:flex-end;gap:2px;padding-bottom:6px}
+.twinfo b{font-family:var(--display);font-size:1.3rem}.twinfo b.down{color:var(--leaf-ink)}.twinfo b.up{color:var(--sea)}
+.applyrow{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--surface2);display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.applyrow p{margin:0;flex:1 1 260px;font-weight:600}.applyrow p.warn{color:var(--tomato);flex-basis:100%}
+.tipbox.warn{background:var(--tomato-soft)}
+.kpis.eta .kpi b{font-size:1.25rem}
+.etachart{margin-top:12px;background:var(--surface2);border-radius:14px;padding:6px}.etachart svg{width:100%;height:auto;display:block}
+.etachart .cap{margin:2px 8px 4px;font-size:.74rem;color:var(--muted);text-align:start}
+.miles{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.miles span{background:var(--surface2);border-radius:10px;padding:6px 10px;font-size:.78rem;color:var(--muted);display:flex;flex-direction:column}.miles b{color:var(--ink);font-size:.92rem}
+ul.zeta{margin:6px 0 0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px;font-size:.88rem}
+.goalstrip{align-items:center}.goalstrip p{flex:1}
+.frow{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.fm{display:flex;align-items:center;gap:8px;min-width:0}.fm b{font-size:.9rem}
+.fex{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fx{display:flex;flex-direction:column;gap:4px;font-size:.76rem;font-weight:600;min-width:0}
+.fx img{width:100%;aspect-ratio:4/3;height:auto;border-radius:10px;background:#fff}
+@media (max-width:720px){.frow{grid-template-columns:1fr}.zgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:1000px){.tiergrid{grid-template-columns:1fr 1fr}.microgrid{grid-template-columns:1fr 1fr}}
 @media (max-width:720px){.falt{grid-template-columns:32px minmax(0,1fr) auto}.falt .btn{grid-column:1/-1}.microgrid{grid-template-columns:1fr}}
 /* alternatives & missing machines */
@@ -457,5 +480,6 @@ details.shop summary{display:flex;align-items:center;gap:8px}details.shop summar
 <script src="ex_en.js"></script>
 <script src="i18n.js"></script>
 <script src="data_nutr.js"></script>
+<script src="data_goal.js"></script>
 <script src="body.js"></script>
 <script src="app.js"></script>
