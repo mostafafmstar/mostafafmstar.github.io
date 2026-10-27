@@ -1082,13 +1082,22 @@ document.addEventListener("click",async ev=>{
 document.addEventListener("input",ev=>{
   const el=ev.target;
   if(el.id==="zoneText"){S.p.goalText=el.value; save(); return;}
-  if(el.dataset.p){const k=el.dataset.p; S.p[k]=el.type==="number"?+el.value:el.value; renderHero(); renderRail(); clearTimeout(el._t); el._t=setTimeout(()=>{if(S.tab==="profile"){const pos=el.id; render(); const n=document.getElementById(pos); if(n){n.focus(); try{const L=String(n.value).length; n.setSelectionRange&&n.type!=="number"&&n.setSelectionRange(L,L);}catch(e){}}}},700); save(); return;}
+  if(el.dataset.p){const k=el.dataset.p;
+    // while typing: keep what the person typed, update numbers live only for a usable value, never re-render the field
+    if(el.type==="number"){const raw=el.value.trim(); if(raw===""||isNaN(+raw)) return; const v=+raw, lo=+el.min||0, hi=+el.max||1e9; if(v<lo||v>hi) return; S.p[k]=v;}
+    else S.p[k]=el.value;
+    renderHero(); renderRail(); save(); return;}
   const row=el.closest&&el.closest(".it");
   if(row&&el.dataset.k==="g"){const mi=+row.dataset.mi, ii=+row.dataset.ii; S.meals[mi].items[ii].g=+el.value||0; S.example=false; refreshMealNums(mi); save(); return;}
   if(el.dataset.price){const id=el.dataset.price,c=el.dataset.c; S.prices[id]=Object.assign({},S.prices[id],{[c]:el.value===""?null:+el.value}); renderRail(); renderHero(); save(); return;}
   if(el.id==="loadR"){S.gym.load=+el.value; clearTimeout(el._t); el._t=setTimeout(render,250); return;}
 });
 document.addEventListener("change",ev=>{
+  {const el=ev.target; if(el.dataset&&el.dataset.p&&el.type==="number"){const k=el.dataset.p; const raw=el.value.trim();
+    if(k==="tw"&&raw===""){S.p.tw=0; return render();}
+    if(raw===""||isNaN(+raw)){el.value=S.p[k]||""; return;}
+    const lo=+el.min||0, hi=+el.max||1e9; const v=Math.min(hi,Math.max(lo,+raw)); S.p[k]=v; if(+raw!==v) toast(t("range_fixed",{v}));
+    return render();}}
   const el=ev.target;
   if(el.id==="langSel"){S.lang=el.value; return render();}
   if(el.id==="pLink"){S.p.link=el.checked; return render();}
