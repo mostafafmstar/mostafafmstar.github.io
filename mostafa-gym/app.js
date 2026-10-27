@@ -5,7 +5,7 @@ const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelect
 const F=Object.fromEntries(PI.foods.map(f=>[f.id,f]));
 const EXIDS=Object.keys(PI.ex);
 const KEY="plateiron.v1";
-const MEALKEYS={3:["breakfast","lunch","dinner"],4:["breakfast","lunch","pre","post"],5:["breakfast","snack","lunch","pre","post"],6:["breakfast","snack","lunch","pre","post","dinner"]};
+const MEALKEYS={2:["lunch","dinner"],3:["breakfast","lunch","dinner"],4:["breakfast","lunch","pre","post"],5:["breakfast","snack","lunch","pre","post"],6:["breakfast","snack","lunch","pre","post","dinner"]};
 const MEALTIME={breakfast:"09:00",snack:"11:30",lunch:"14:00",pre:"18:00",post:"22:30",dinner:"20:30"};
 const WD_PATTERN={1:[1],2:[1,4],3:[1,3,5],4:[1,2,4,5],5:[0,1,2,4,5],6:[0,1,2,3,4,5],7:[0,1,2,3,4,5,6]};
 PI.cookOil={sa:14.5,eg:95};
@@ -121,6 +121,36 @@ const TIERS={
        snack:[[["whey",30,"raw"],["kiwi",0,"raw"],["almonds",20,"raw"]],[["greek_yogurt",0,"raw"],["blueberries",0,"raw"]],[["cottage",0,"raw"],["strawberry",0,"raw"]],[["whey",30,"raw"],["mango",0,"raw"]]],
        fat:[["avocado","almonds"],["olive_oil","almonds"],["almonds","avocado"]]}
 };
+/* «نظام الطيبات» (Dr. Diaa El-Awady) as reported: no white chicken, eggs, legumes, leafy greens, cucumber,
+   liquid milk, flour/wheat; ghee allowed; fewer meals; fruit not straight after a meal. Only the food rules are applied. */
+const TAYB_BAN=new Set(["chicken_breast","chicken_thigh","egg","egg_white","lentils","chickpeas","foul","spinach","lettuce","salad","cucumber","milk","whey","ww_bread","pita","pasta","bulgur","peanut_butter"]);
+const isTayb=()=>S.p.style==="tayyibat";
+const banned=id=>isTayb()&&TAYB_BAN.has(id);
+const TIERS_T={
+  eco:{p:["tilapia","beef_lean","tuna","tilapia","beef_lean","tuna","hamour"],
+       c:["egy_rice","potato","sweet_potato","egy_rice","corn","potato","basmati"],
+       v:["zucchini","carrot","eggplant","tomato","green_beans","onion","pepper"],
+       fr:["banana","orange","dates","watermelon","mango","grapes","banana"],
+       bk:[[["cottage",0,"raw"],["potato",0,"oven"],["tomato",100,"raw"]],[["greek_yogurt",170,"raw"],["dates",24,"raw"],["banana",118,"raw"]],[["tuna",0,"raw"],["potato",0,"oven"],["tomato",100,"raw"],["pepper",60,"raw"]],[["cottage",0,"raw"],["sweet_potato",0,"oven"],["dates",24,"raw"]]],
+       snack:[[["greek_yogurt",0,"raw"],["dates",0,"raw"]],[["cottage",0,"raw"],["banana",0,"raw"]],[["greek_yogurt",0,"raw"],["mango",0,"raw"]]],
+       fat:[["butter","tahini"],["tahini","butter"],["olives","butter"]]},
+  std:{p:["beef_lean","hamour","salmon","tilapia","lamb","tuna","shrimp"],
+       c:["basmati","sweet_potato","potato","brown_rice","basmati","corn","quinoa"],
+       v:["broccoli","zucchini","green_beans","carrot","pepper","mushroom","eggplant"],
+       fr:["banana","apple","strawberry","orange","mango","grapes","kiwi"],
+       bk:[[["greek_yogurt",170,"raw"],["oats",0,"boil"],["honey",14,"raw"],["strawberry",100,"raw"]],[["cottage",0,"raw"],["sweet_potato",0,"oven"],["tomato",100,"raw"]],[["tuna",0,"raw"],["potato",0,"oven"],["pepper",80,"raw"]],[["greek_yogurt",170,"raw"],["dates",24,"raw"],["banana",118,"raw"],["almonds",20,"raw"]]],
+       snack:[[["greek_yogurt",0,"raw"],["banana",0,"raw"]],[["cottage",0,"raw"],["apple",0,"raw"]],[["greek_yogurt",0,"raw"],["dates",0,"raw"]]],
+       fat:[["butter","almonds"],["almonds","avocado"],["avocado","butter"]]},
+  prem:{p:["salmon","lamb","shrimp","hamour","beef_lean","salmon","lamb"],
+       c:["quinoa","sweet_potato","brown_rice","basmati","potato","quinoa","sweet_potato"],
+       v:["broccoli","mushroom","pepper","zucchini","green_beans","carrot","eggplant"],
+       fr:["blueberries","kiwi","strawberry","mango","grapes","kiwi","blueberries"],
+       bk:[[["greek_yogurt",170,"raw"],["oats",0,"boil"],["blueberries",100,"raw"],["honey",14,"raw"]],[["salmon",0,"oven"],["sweet_potato",0,"oven"],["avocado",70,"raw"]],[["cottage",0,"raw"],["potato",0,"oven"],["mushroom",80,"pan"]],[["greek_yogurt",170,"raw"],["mango",120,"raw"],["almonds",20,"raw"]]],
+       snack:[[["greek_yogurt",0,"raw"],["blueberries",0,"raw"]],[["cottage",0,"raw"],["kiwi",0,"raw"]],[["greek_yogurt",0,"raw"],["strawberry",0,"raw"]]],
+       fat:[["avocado","almonds"],["butter","avocado"],["almonds","butter"]]}
+};
+const tierPools=tk=>(isTayb()?TIERS_T:TIERS)[tk]||(isTayb()?TIERS_T:TIERS).std;
+const planN=()=>isTayb()?(S.meals.length||2):Math.max(4,S.meals.length);
 const TIER_ORDER=["prem","std","eco"];
 /* cost per unit of what the food is for */
 function costBasis(f){return f.cat==="protein"?"p":(f.cat==="carb"||f.cat==="fat")?"k":"g";}
@@ -141,7 +171,7 @@ function rotMethod(f,i){const ok=methodsFor(f); const pref=PI.defaultMethod[f.id
   const r=ROT[f.cat]; if(!r) return defMethod(f); for(let k=0;k<r.length;k++){const m=r[(i+k)%r.length]; if(ok.includes(m)) return m;} return defMethod(f);}
 const fruitG=f=>f.u?(f.u<20?f.u*3:f.u):150;
 function makePlan(n,tier,day,shift){
-  n=n||4; day=(+day||0)%7; shift=+shift||0; const keys=MEALKEYS[n]||MEALKEYS[4]; const T=targets(); const TP=TIERS[tier]||TIERS.std;
+  n=n||4; day=(+day||0)%7; shift=+shift||0; const keys=MEALKEYS[n]||MEALKEYS[4]; const T=targets(); const TP=tierPools(tier);
   const pPool=TP.p;
   const share={breakfast:{p:1,c:.9},snack:{p:.55,c:.6},lunch:{p:1.2,c:1},pre:{p:1,c:1.3},post:{p:1.2,c:1.25},dinner:{p:1,c:.7}};
   const sp=keys.reduce((a,k)=>a+share[k].p,0), sc=keys.reduce((a,k)=>a+share[k].c,0);
@@ -168,7 +198,7 @@ function makePlan(n,tier,day,shift){
       const pg=solveGrams(pf,Pt-cf.p*cg/100-vf.p*vg/100,"p",80,pf.p<12?330:320);
       const mi=day+ix.p;
       items.push({f:pf.id,g:pg,m:rotMethod(pf,mi)},{f:cf.id,g:cg,m:rotMethod(cf,mi+1)},{f:vf.id,g:vg,m:rotMethod(vf,mi+2)});
-      if(k==="pre"){const fr=F[TP.fr[fi++%TP.fr.length]]; items.push({f:fr.id,g:fruitG(fr),m:"raw"});}
+      if(k==="pre"&&!isTayb()){const fr=F[TP.fr[fi++%TP.fr.length]]; items.push({f:fr.id,g:fruitG(fr),m:"raw"});}
     }
     return {k,t:MEALTIME[k],items};
   });
@@ -190,9 +220,10 @@ const weekAvgCost=(w,c)=>w.reduce((a,ms)=>a+sumItems(ms.flatMap(m=>m.items),c).c
 function fitCalories(meals,T){
   T=T||targets(); const all=()=>meals.flatMap(m=>m.items); let tot=sumItems(all()); let diff=T.kcal-tot.k;
   const carbItems=all().filter(it=>F[it.f].cat==="carb"&&it.f!=="oats"&&!F[it.f].u);
+  const cmax=meals.length<=2?700:500;
   for(let pass=0;pass<5&&Math.abs(diff)>40&&carbItems.length;pass++){
     const each=diff/carbItems.length;
-    carbItems.forEach(it=>{const kpg=F[it.f].k/100; it.g=Math.min(500,Math.max(40,rnd10(it.g+each/kpg)));});
+    carbItems.forEach(it=>{const kpg=F[it.f].k/100; it.g=Math.min(cmax,Math.max(40,rnd10(it.g+each/kpg)));});
     tot=sumItems(all()); diff=T.kcal-tot.k;
   }
   // still over (legume-heavy budget days): trim legumes, then added fats
@@ -209,7 +240,7 @@ function eqGrams(from,g,to){
   ng=Math.min(700,Math.max(to.u?to.u:10,ng)); if(to.u) return Math.max(to.u,Math.round(ng/to.u*2)/2*to.u); return ng<60?Math.round(ng/5)*5:rnd10(ng);
 }
 function foodAlts(it){
-  const f=F[it.f]; const peers=PI.foods.filter(x=>x.cat===f.cat&&x.id!==f.id);
+  const f=F[it.f]; const peers=PI.foods.filter(x=>x.cat===f.cat&&x.id!==f.id&&!banned(x.id));
   const rows=peers.map(x=>{const g=eqGrams(f,it.g,x); const nit={f:x.id,g,m:defMethod(x)}; return {x,g,c:calcItem(nit)};});
   rows.sort((a,b)=>a.c.cost-b.c.cost);
   return rows;
@@ -601,7 +632,7 @@ function applyGoal(){
   if(S.gym.wd.length<G.days) S.gym.wd=WD_PATTERN[G.days].slice();
   if(S.gym.mode==="library") S.gym.mode="general";
   if(S.gym.mode==="custom"&&focus.length) S.gym.muscles=[...new Set(S.gym.muscles.concat(focus))];
-  buildPlan(Math.max(4,S.meals.length)); render();
+  buildPlan(planN()); render();
   const T=targets(); const E=etaInfo();
   toast(t("goal_applied",{goal:nm(G),kcal:fmt(T.kcal),days:S.gym.wd.length,focus:focus.length?focus.map(m=>nm(PI.muscles[m])).join("، "):"—"})+(E.kind==="ok"?" "+t("eta_weeks_short",{w:E.weeks}):""),8000);
 }
@@ -739,7 +770,7 @@ function linkBanner(from){
 
 /* ---------------- FOOD ---------------- */
 function foodOptions(sel){
-  return Object.entries(PI.cats).map(([c,ci])=>`<optgroup label="${esc(nm(ci))}">${PI.foods.filter(f=>f.cat===c).map(f=>`<option value="${f.id}" ${f.id===sel?"selected":""}>${esc(nm(f))} · ${"$".repeat(priceTier(f))}</option>`).join("")}</optgroup>`).join("");
+  return Object.entries(PI.cats).map(([c,ci])=>`<optgroup label="${esc(nm(ci))}">${PI.foods.filter(f=>f.cat===c&&(!banned(f.id)||f.id===sel)).map(f=>`<option value="${f.id}" ${f.id===sel?"selected":""}>${esc(nm(f))} · ${"$".repeat(priceTier(f))}</option>`).join("")}</optgroup>`).join("");
 }
 function itemRow(mi,ii,it){
   const f=F[it.f]; const x=calcItem(it);
@@ -747,7 +778,7 @@ function itemRow(mi,ii,it){
   const unit=f.u?`<div class="hint num">${esc(t("units_hint",{n:r1(it.g/f.u),u:f.un[S.lang]||f.un.en}))}</div>`:`<div class="hint">${esc(t("st_"+f.st))}</div>`;
   return `<div class="it" data-mi="${mi}" data-ii="${ii}">
     <div class="fimg"><img src="${fimg(f.img)}" alt=""></div>
-    <div class="c-food"><select class="in" data-k="f" aria-label="${esc(t("food"))}">${foodOptions(it.f)}</select></div>
+    <div class="c-food"><select class="in" data-k="f" aria-label="${esc(t("food"))}">${foodOptions(it.f)}</select>${banned(it.f)?`<span class="bantag">⛔ ${esc(t("tayb_banned"))}</span>`:""}</div>
     <div class="c-g"><input class="in num" data-k="g" type="number" min="0" max="2000" step="5" inputmode="numeric" value="${it.g}" aria-label="${esc(t("amount"))}">${unit}</div>
     <div class="c-m"><select class="in" data-k="m" aria-label="${esc(t("method"))}" ${ms.split("<option").length<3?"disabled":""}>${ms}</select></div>
     <div class="nums num" data-nums><b>${fmt(x.k)}</b> ${esc(t("kcal"))}<br><span style="color:var(--mP)">P ${r0(x.p)}</span> · <span>C ${r0(x.c)}</span> · <span style="color:var(--mF)">F ${r0(x.f)}</span><br><span class="sub">${esc(money(x.cost))}</span></div>
@@ -787,10 +818,17 @@ function mealCard(m,mi){
 }
 function totPills(s){return `<span class="pill k num">${fmt(s.k)} ${esc(t("kcal"))}</span><span class="pill p num">P ${r0(s.p)}</span><span class="pill c num">C ${r0(s.c)}</span><span class="pill f num">F ${r0(s.f)}</span><span class="pill cost num">${esc(money(s.cost))}</span>`;}
 let tierMemo={};
+function styleCard(){
+  const cur=isTayb()?"tayyibat":"normal";
+  const chip=(k,img)=>`<button class="chip tierc" data-style="${k}" aria-pressed="${cur===k}"><img src="${fimg(img)}" alt=""><span>${esc(t("style_"+k))}<small>${esc(t("style_"+k+"_d"))}</small></span></button>`;
+  return `<section class="card"><h3><img src="img/food/fork_and_knife_with_plate.webp" alt="">${esc(t("style_title"))}</h3>
+    <div class="stylegrid">${chip("normal","green_salad")}${chip("tayyibat","meat_on_bone")}</div>
+    ${cur==="tayyibat"?`<div class="tipbox" style="margin-top:12px">${esc(t("tayb_note"))}</div><div class="tipbox warn" style="margin-top:8px">${esc(t("tayb_warn"))}</div>`:""}</section>`;
+}
 function tierCard(){
   const n=S.meals.length||4; const cur=S.p.tier||"std"; const T=targets();
-  const key=JSON.stringify([S.country,n,T.kcal,T.P,T.C,T.F,S.prices]); if(tierMemo.key!==key){tierMemo={key,cost:{}}; ["eco","std","prem"].forEach(k=>tierMemo.cost[k]=weekAvgCost(makeWeek(n,k))*30);} const cost=tierMemo.cost;
-  const chip=(k,img)=>`<button class="chip tierc" data-tier="${k}" aria-pressed="${cur===k}"><img src="${fimg(img)}" alt=""><span>${esc(t("tier_"+k))} <b class="num">${k==="budget"?(getBudget()?esc(money(getBudget()))+" "+esc(t("per_month")):""):"≈ "+esc(money(cost[k]))+" "+esc(t("per_month"))}</b><small>${esc(k==="budget"?t("budget_hint"):t("tier_"+k+"_d"))}</small></span></button>`;
+  const key=JSON.stringify([S.country,n,T.kcal,T.P,T.C,T.F,S.prices,S.p.style||""]); if(tierMemo.key!==key){tierMemo={key,cost:{}}; ["eco","std","prem"].forEach(k=>tierMemo.cost[k]=weekAvgCost(makeWeek(n,k))*30);} const cost=tierMemo.cost;
+  const chip=(k,img)=>`<button class="chip tierc" data-tier="${k}" aria-pressed="${cur===k}"><img src="${fimg(img)}" alt=""><span>${esc(t("tier_"+k))} <b class="num">${k==="budget"?(getBudget()?esc(money(getBudget()))+" "+esc(t("per_month")):""):"≈ "+esc(money(cost[k]))+" "+esc(t("per_month"))}</b><small>${esc(k==="budget"?t("budget_hint"):t("tier_"+k+"_d"+(isTayb()?"_t":"")))}</small></span></button>`;
   let status="";
   if(cur==="budget"&&getBudget()>0){ const mc=weekAvgCost(S.week)*30; const b=getBudget();
     status=mc<=b+0.5?`<p class="bstatus good">${esc(lastBudgetMsg?lastBudgetMsg+" ":"")}${esc(t("budget_ok",{cost:money(mc),b:money(b),left:money(b-mc)}))}</p>`:`<p class="bstatus warn">${esc(lastBudgetMsg?lastBudgetMsg+" ":"")}${esc(t("budget_over",{cost:money(mc),b:money(b)}))}</p>`; }
@@ -833,7 +871,7 @@ function microCard(){
   const tot=microDay(); const R=rdaSet(); const low=[];
   const bars=PI.nutKeys.map((k,i)=>{const pct=tot[i]/R[k]*100; const isNa=k==="na"; const bad=isNa?pct>100:pct<70; if(!isNa&&pct<70) low.push(k);
     return `<div class="mb"><div class="top"><span>${esc(nm(PI.nutName[k]))}</span><b class="num" dir="ltr">${esc(fmtN(tot[i],k))} · ${Math.round(pct)}%</b></div><div class="bar"><div style="width:${Math.min(100,pct)}%;background:${isNa?(bad?"var(--tomato)":"var(--sea)"):bad?"var(--sun)":"var(--leaf)"}"></div></div></div>`;}).join("");
-  const sugg=k=>PI.foods.filter(f=>PI.micro[f.id]).map(f=>[f,PI.micro[f.id][PI.nutKeys.indexOf(k)]/R[k]]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([f])=>nm(f)).join("، ");
+  const sugg=k=>PI.foods.filter(f=>PI.micro[f.id]&&!banned(f.id)).map(f=>[f,PI.micro[f.id][PI.nutKeys.indexOf(k)]/R[k]]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([f])=>nm(f)).join("، ");
   const naI=PI.nutKeys.indexOf("na");
   const notes=[]; if(low.length) notes.push(t("micro_low",{n:low.map(k=>nm(PI.nutName[k])).join("، "),foods:[...new Set(low.slice(0,3).map(sugg).join("، ").split("، "))].slice(0,6).join("، ")}));
   if(tot[naI]>R.na) notes.push(t("micro_na_high",{v:Math.round(tot[naI])})); if(!notes.length) notes.push(t("micro_all_ok"));
@@ -849,11 +887,12 @@ function renderFood(){
   ${S.example?`<div class="banner"><img src="img/food/clipboard.webp" alt=""><p>${esc(t("example_note"))}</p></div>`:""}
   ${goalStrip()}
   <section class="card"><div class="toolbar">
-    <label class="f" for="mealsN">${esc(t("meals_count"))}<select class="in" id="mealsN" style="width:110px">${[3,4,5,6].map(k=>`<option ${k===n?"selected":""}>${k}</option>`).join("")}</select></label>
+    <label class="f" for="mealsN">${esc(t("meals_count"))}<select class="in" id="mealsN" style="width:110px">${[2,3,4,5,6].map(k=>`<option ${k===n?"selected":""}>${k}</option>`).join("")}</select></label>
     <button class="btn pri" data-auto><img src="img/food/sparkles.webp" alt="">${esc(t("auto_plan"))}</button>
     <button class="btn ghost" data-clear>${esc(t("clear_all"))}</button>
     <span class="sub" style="margin-inline-start:auto">${esc(nm(PI.goals[S.p.goal]))} · ${esc(t("goal_kcal_line",{kcal:fmt(targets().kcal),p:targets().P}))}</span>
   </div></section>
+  ${styleCard()}
   ${tierCard()}
   ${weekCard()}
   ${S.meals.map(mealCard).join("")}
@@ -1004,7 +1043,10 @@ document.addEventListener("click",async ev=>{
   if(d.mode){S.p.mode=d.mode; return render();}
   if(d.link==="food2gym"){const G=PI.goals[S.p.goal]; S.gym.gg=G.gym; S.gym.wd=WD_PATTERN[G.days].slice(); S.gym.mode="general"; S.tab="gym"; render(); toast(t("linked_gym_done",{gym:t("gg_"+G.gym),days:G.days,goal:nm(G)})); return;}
   if(d.link==="gym2food"){const map={hypertrophy:"lean_gain",strength:"lean_gain",fatburn:"fat_loss",endurance:"endurance",tone:"cut"}; S.p.goal=map[S.gym.gg]||"recomp"; S.p.link=true; S.p.mode="auto";
-    buildPlan(Math.max(4,S.meals.length)); S.tab="food"; render(); toast(t("linked_food_done",{goal:nm(PI.goals[S.p.goal]),days:gymDays()})); return;}
+    buildPlan(planN()); S.tab="food"; render(); toast(t("linked_food_done",{goal:nm(PI.goals[S.p.goal]),days:gymDays()})); return;}
+  if(d.style){const v=d.style==="tayyibat"?"tayyibat":"normal"; if((S.p.style||"normal")===v) return; S.p.style=v; ui={alt:null,nut:null};
+    const n=v==="tayyibat"?(S.meals.length>3?2:S.meals.length):Math.max(3,S.meals.length<3?4:S.meals.length);
+    buildPlan(n); render(); toast(lastBudgetMsg||t(v==="tayyibat"?"style_set_tayb":"style_set_normal",{n}),7000); return;}
   if(d.day!=null){syncWeek(); S.day=+d.day; S.meals=S.week[S.day]; ui={alt:null,nut:null}; render(); const el=$(".weekstrip"); if(el) el.scrollIntoView({block:"nearest"}); return;}
   if(d.redoday!=null){const tk=S.p.tierUsed||"std"; const n=S.meals.length||4; S.redo=((S.redo||0)%5)+1; const ms=makePlan(n,tk,S.day,S.redo);
     if(S.p.tier==="budget"&&getBudget()>0){const lim=getBudget()/30; optimizeForBudget(ms,lim); fitCalories(ms); optimizeForBudget(ms,lim); fitCalories(ms);}
@@ -1016,7 +1058,7 @@ document.addEventListener("click",async ev=>{
   if(d.fswap){const [mi,ii,id,g]=d.fswap.split("|"); S.meals[+mi].items[+ii]={f:id,g:+g,m:defMethod(F[id])}; ui.alt=null; S.example=false; render(); toast(t("swapped")); return;}
   if(d.clear!=null){S.meals=(MEALKEYS[S.meals.length]||MEALKEYS[4]).map(k=>({k,t:MEALTIME[k],items:[]})); S.week[S.day]=S.meals; S.example=false; return render();}
   const mealEl=b.closest("[data-meal]");
-  if(d.add!=null&&mealEl){const mi=+mealEl.dataset.meal; const f=F.chicken_breast; S.meals[mi].items.push({f:f.id,g:150,m:defMethod(f)}); S.example=false; return render();}
+  if(d.add!=null&&mealEl){const mi=+mealEl.dataset.meal; const f=isTayb()?F.beef_lean:F.chicken_breast; S.meals[mi].items.push({f:f.id,g:150,m:defMethod(f)}); S.example=false; return render();}
   if(d.del!=null){ui={alt:null,nut:null};const row=b.closest(".it"); S.meals[+row.dataset.mi].items.splice(+row.dataset.ii,1); S.example=false; return render();}
   if(d.ai!=null&&mealEl) return aiTip(+mealEl.dataset.meal,mealEl);
   if(d.resetprices!=null){S.prices={}; return render();}
@@ -1136,7 +1178,8 @@ function foodBlocks(){
   {const gb=goalBlock(); if(gb) b.push(gb);}
   syncWeek();
   {const tots=S.week.map(ms=>sumItems(ms.flatMap(m=>m.items))); const wk=tots.reduce((a,x)=>a+x.cost,0);
-   b.push(`<div class="rb"><h2>${esc(t("week_title"))} · ${esc(t("tier_"+(S.p.tierUsed||S.p.tier||"std")))}</h2>
+   if(isTayb()) b.push(`<div class="rb" style="background:#FFE1DB;border:0"><h3>${esc(t("style_tayyibat"))}</h3><p style="margin:0 0 4px">${esc(t("tayb_note"))}</p><p style="margin:0;font-weight:700">${esc(t("tayb_warn"))}</p></div>`);
+   b.push(`<div class="rb"><h2>${esc(t("week_title"))} · ${esc(t(isTayb()?"style_tayyibat":"style_normal"))} · ${esc(t("tier_"+(S.p.tierUsed||S.p.tier||"std")))}</h2>
     <table class="rt"><thead><tr><th></th><th>${esc(t("kcal"))}</th><th>P / C / F</th><th>${esc(t("meal_cost"))}</th><th>${esc(t("week_main"))}</th></tr></thead><tbody>
     ${S.week.map((ms,i)=>`<tr><td style="font-weight:700">${esc(wdName(i))}${S.gym.wd.includes(i)?" 🏋":""}</td><td class="num">${fmt(tots[i].k)}</td><td class="num">${r0(tots[i].p)} / ${r0(tots[i].c)} / ${r0(tots[i].f)}</td><td class="num">${esc(money(tots[i].cost))}</td><td>${esc(dayHeadline(ms))}</td></tr>`).join("")}
     <tr style="font-weight:700"><td>${esc(t("week_total"))}</td><td></td><td></td><td class="num">${esc(money(wk))}</td><td class="num">≈ ${esc(money(wk/7*30))} ${esc(t("per_month"))}</td></tr></tbody></table></div>`);}
