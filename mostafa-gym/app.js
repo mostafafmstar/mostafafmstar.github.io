@@ -150,7 +150,7 @@ const TIERS_T={
        fat:[["avocado","almonds"],["butter","avocado"],["almonds","butter"]]}
 };
 const tierPools=tk=>(isTayb()?TIERS_T:TIERS)[tk]||(isTayb()?TIERS_T:TIERS).std;
-const planN=()=>isTayb()?(S.meals.length||2):Math.max(4,S.meals.length);
+const planN=()=>Math.max(4,S.meals.length);
 const TIER_ORDER=["prem","std","eco"];
 /* cost per unit of what the food is for */
 function costBasis(f){return f.cat==="protein"?"p":(f.cat==="carb"||f.cat==="fat")?"k":"g";}
@@ -198,7 +198,7 @@ function makePlan(n,tier,day,shift){
       const pg=solveGrams(pf,Pt-cf.p*cg/100-vf.p*vg/100,"p",80,pf.p<12?330:320);
       const mi=day+ix.p;
       items.push({f:pf.id,g:pg,m:rotMethod(pf,mi)},{f:cf.id,g:cg,m:rotMethod(cf,mi+1)},{f:vf.id,g:vg,m:rotMethod(vf,mi+2)});
-      if(k==="pre"&&!isTayb()){const fr=F[TP.fr[fi++%TP.fr.length]]; items.push({f:fr.id,g:fruitG(fr),m:"raw"});}
+      if(k==="pre"){const fr=F[TP.fr[fi++%TP.fr.length]]; items.push({f:fr.id,g:fruitG(fr),m:"raw"});}
     }
     return {k,t:MEALTIME[k],items};
   });
@@ -1045,7 +1045,7 @@ document.addEventListener("click",async ev=>{
   if(d.link==="gym2food"){const map={hypertrophy:"lean_gain",strength:"lean_gain",fatburn:"fat_loss",endurance:"endurance",tone:"cut"}; S.p.goal=map[S.gym.gg]||"recomp"; S.p.link=true; S.p.mode="auto";
     buildPlan(planN()); S.tab="food"; render(); toast(t("linked_food_done",{goal:nm(PI.goals[S.p.goal]),days:gymDays()})); return;}
   if(d.style){const v=d.style==="tayyibat"?"tayyibat":"normal"; if((S.p.style||"normal")===v) return; S.p.style=v; ui={alt:null,nut:null};
-    const n=v==="tayyibat"?(S.meals.length>3?2:S.meals.length):Math.max(3,S.meals.length<3?4:S.meals.length);
+    const n=Math.max(3,S.meals.length);
     buildPlan(n); render(); toast(lastBudgetMsg||t(v==="tayyibat"?"style_set_tayb":"style_set_normal",{n}),7000); return;}
   if(d.day!=null){syncWeek(); S.day=+d.day; S.meals=S.week[S.day]; ui={alt:null,nut:null}; render(); const el=$(".weekstrip"); if(el) el.scrollIntoView({block:"nearest"}); return;}
   if(d.redoday!=null){const tk=S.p.tierUsed||"std"; const n=S.meals.length||4; S.redo=((S.redo||0)%5)+1; const ms=makePlan(n,tk,S.day,S.redo);

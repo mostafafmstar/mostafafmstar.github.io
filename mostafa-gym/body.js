@@ -180,7 +180,7 @@ function apply(){
   S.p.goal=a.goal; S.p.mode="auto"; S.p.link=true;
   S.gym.gg=a.gg; S.gym.focus=a.focus; S.gym.cardioMin=a.cardio; if(S.gym.mode==="library") S.gym.mode="general";
   if(S.gym.wd.length<a.days) S.gym.wd=A().WD_PATTERN[a.days].slice();
-  A().buildPlan(S.p.style==="tayyibat"?(S.meals.length||2):Math.max(4,S.meals.length));
+  A().buildPlan(Math.max(4,S.meals.length));
   const E=B().entries||(B().entries=[]); const key=m.date||new Date().toISOString().slice(0,10);
   const rec={date:key,w:+m.w||null,smm:+m.smm||null,pbf:+m.pbf||null,bfm:+m.bfm||null};
   const ix=E.findIndex(e=>e.date===key); if(ix>=0) E[ix]=rec; else E.push(rec);
