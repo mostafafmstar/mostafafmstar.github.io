@@ -97,7 +97,7 @@ button{cursor:pointer}
 
 /* ---------- tabs ---------- */
 .tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);border-bottom:1px solid var(--line)}
-.tabs .wrap{display:flex;gap:6px;overflow-x:auto;padding-block:46px 10px;align-items:flex-end;scrollbar-width:none}
+.tabs .wrap{display:flex;gap:6px;overflow-x:auto;padding-block:56px 10px;align-items:flex-end;scrollbar-width:none}
 .tab{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-weight:600;white-space:nowrap;display:inline-flex;gap:8px;align-items:center}
 .tab img{width:22px;height:22px}
 .tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -352,18 +352,18 @@ ul.zeta{margin:6px 0 0;padding-inline-start:18px;display:flex;flex-direction:col
 .chips.cq{margin-top:10px}
 .chatbar{display:flex;gap:8px;margin-top:10px;align-items:stretch}.chatbar textarea{flex:1;min-width:0;resize:vertical;min-height:48px;font:inherit}
 @media (max-width:720px){.cmsg{max-width:96%}.chatbar{flex-wrap:wrap}.chatbar .btn{flex:1}}
-.tab.coachtab{position:relative;padding-inline-start:82px;background:linear-gradient(135deg,#FFE27A,#F6B400);border-color:#E09A00;color:#3A2600;font-weight:800;box-shadow:0 4px 14px rgba(246,180,0,.45)}
+.tab.coachtab{position:relative;padding-inline-start:96px;background:linear-gradient(135deg,#FFE27A,#F6B400);border-color:#E09A00;color:#3A2600;font-weight:800;box-shadow:0 4px 14px rgba(246,180,0,.45)}
 .tab.coachtab[aria-selected="true"]{background:linear-gradient(135deg,#1F9D57,#0E6B39);border-color:#0E6B39;color:#fff;box-shadow:0 4px 16px rgba(31,157,87,.5)}
-.coachav{position:absolute;inset-inline-start:0;bottom:-4px;width:84px;height:86px;pointer-events:none;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25));transform-origin:50% 100%;animation:coachbob 2.8s ease-in-out infinite}
+.coachav{position:absolute;inset-inline-start:0;bottom:-2px;width:92px;height:101px;background:radial-gradient(circle at 50% 60%,rgba(255,226,122,.95) 0 38%,rgba(255,201,51,.0) 62%);border-radius:50%;pointer-events:none;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25));transform-origin:50% 100%;animation:coachbob 2.8s ease-in-out infinite}
 .coachav img{width:100%;height:100%;display:block;object-fit:contain}
 .tab.coachtab:hover .coachav{animation:coachwave .6s ease-in-out 2}
 @keyframes coachbob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-4px) rotate(-3deg)}}
 @keyframes coachwave{0%,100%{transform:rotate(0) scale(1)}30%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(6deg) scale(1.08)}}
 @media (prefers-reduced-motion:reduce){.coachav{animation:none}}
 .coachhead{display:flex;gap:16px;align-items:flex-end;margin:-6px 0 6px}
-.coachhero{width:160px;height:163px;object-fit:contain;flex:none;margin-top:-34px;filter:drop-shadow(0 8px 14px rgba(0,0,0,.22))}
+.coachhero{width:190px;height:209px;object-fit:contain;background:radial-gradient(circle at 50% 58%,#FFE27A 0 40%,rgba(246,180,0,0) 66%);flex:none;margin-top:-34px;filter:drop-shadow(0 8px 14px rgba(0,0,0,.22))}
 .coachhead h3{margin:0 0 4px}.coachhead .hi{margin:0 0 6px;font-weight:700;color:var(--leaf-ink);font-size:1.02rem}
-@media (max-width:720px){.coachhero{width:110px;height:112px;margin-top:-20px}.coachhead{gap:10px}}
+@media (max-width:720px){.coachhero{width:120px;height:132px;margin-top:-20px}.coachhead{gap:10px}}
 @media (max-width:1000px){.tiergrid{grid-template-columns:1fr 1fr}.microgrid{grid-template-columns:1fr 1fr}}
 @media (max-width:720px){.falt{grid-template-columns:32px minmax(0,1fr) auto}.falt .btn{grid-column:1/-1}.microgrid{grid-template-columns:1fr}}
 /* alternatives & missing machines */
