@@ -338,6 +338,20 @@ ul.zeta{margin:6px 0 0;padding-inline-start:18px;display:flex;flex-direction:col
 @media (max-width:720px){.frow{grid-template-columns:1fr}.zgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .stylegrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .bantag{display:inline-block;margin-top:4px;font-size:.72rem;font-weight:700;color:var(--tomato);background:var(--tomato-soft);border-radius:8px;padding:2px 8px}
+.coach .chatlog{display:flex;flex-direction:column;gap:10px;max-height:min(62vh,620px);overflow-y:auto;padding:12px;background:var(--surface2);border-radius:16px;margin-top:6px}
+.cmsg{display:flex;flex-direction:column;gap:6px;max-width:88%}
+.cmsg.user{align-self:flex-start}.cmsg.assistant{align-self:flex-end}
+:root[dir="ltr"] .cmsg.user,html[dir="ltr"] .cmsg.user{align-self:flex-end}:root[dir="ltr"] .cmsg.assistant,html[dir="ltr"] .cmsg.assistant{align-self:flex-start}
+.cmsg .cb{white-space:pre-wrap;line-height:1.65;padding:10px 14px;border-radius:16px;font-size:.92rem}
+.cmsg.user .cb{background:var(--leaf);color:#fff}
+.cmsg.assistant .cb{background:var(--surface);border:1px solid var(--line);color:var(--ink)}
+.cmsg.pending .cb{color:var(--muted)}
+.cstat{font-size:.76rem;color:var(--muted)}
+.cchg{background:var(--sun-soft);border-radius:12px;padding:8px 12px;font-size:.82rem}.cchg ul{margin:4px 0 6px;padding-inline-start:18px}
+.cempty{color:var(--muted);text-align:center;padding:24px 8px}
+.chips.cq{margin-top:10px}
+.chatbar{display:flex;gap:8px;margin-top:10px;align-items:stretch}.chatbar textarea{flex:1;min-width:0;resize:vertical;min-height:48px;font:inherit}
+@media (max-width:720px){.cmsg{max-width:96%}.chatbar{flex-wrap:wrap}.chatbar .btn{flex:1}}
 @media (max-width:1000px){.tiergrid{grid-template-columns:1fr 1fr}.microgrid{grid-template-columns:1fr 1fr}}
 @media (max-width:720px){.falt{grid-template-columns:32px minmax(0,1fr) auto}.falt .btn{grid-column:1/-1}.microgrid{grid-template-columns:1fr}}
 /* alternatives & missing machines */
@@ -484,4 +498,5 @@ ul.zeta{margin:6px 0 0;padding-inline-start:18px;display:flex;flex-direction:col
 <script src="data_nutr.js"></script>
 <script src="data_goal.js"></script>
 <script src="body.js"></script>
+<script src="coach.js"></script>
 <script src="app.js"></script>

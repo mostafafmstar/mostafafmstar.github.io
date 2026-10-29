@@ -25,7 +25,7 @@ function defaults(){return {
 };}
 let S=defaults();
 try{const raw=localStorage.getItem(KEY); if(raw){const o=JSON.parse(raw); S=Object.assign(defaults(),o); S.p=Object.assign(defaults().p,o.p||{}); S.gym=Object.assign(defaults().gym,o.gym||{});}}catch(e){}
-if(location.hash){const h=location.hash.slice(1); if(["profile","body","food","gym","export"].includes(h)) S.tab=h;}
+if(location.hash){const h=location.hash.slice(1); if(["profile","body","food","gym","coach","export"].includes(h)) S.tab=h;}
 let saveT=null;
 function save(){if(typeof syncWeek==="function") syncWeek(); clearTimeout(saveT); saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}},250);}
 
@@ -624,6 +624,12 @@ function goalDetailCard(){
 }
 function applyGoal(){
   if(isPreg()){toast(t("preg_tw")); return;}
+  const {G,focus}=applyGoalCore(); render();
+  const T=targets(); const E=etaInfo();
+  toast(t("goal_applied",{goal:nm(G),kcal:fmt(T.kcal),days:S.gym.wd.length,focus:focus.length?focus.map(m=>nm(PI.muscles[m])).join("، "):"—"})+(E.kind==="ok"?" "+t("eta_weeks_short",{w:E.weeks}):""),8000);
+}
+function applyGoalCore(){
+  if(isPreg()) return {G:PI.goals[S.p.goal],focus:S.gym.focus||[]};
   const g=deriveGoal(); const G=PI.goals[g]; const zs=zonesOf(); const focus=zoneFocus(zs);
   S.p.goal=g; S.p.mode="auto"; S.p.link=true;
   S.gym.gg=(zs.some(z=>PI.zones[z].dir==="gain")&&g!=="fat_loss")?"hypertrophy":G.gym;
@@ -632,9 +638,7 @@ function applyGoal(){
   if(S.gym.wd.length<G.days) S.gym.wd=WD_PATTERN[G.days].slice();
   if(S.gym.mode==="library") S.gym.mode="general";
   if(S.gym.mode==="custom"&&focus.length) S.gym.muscles=[...new Set(S.gym.muscles.concat(focus))];
-  buildPlan(planN()); render();
-  const T=targets(); const E=etaInfo();
-  toast(t("goal_applied",{goal:nm(G),kcal:fmt(T.kcal),days:S.gym.wd.length,focus:focus.length?focus.map(m=>nm(PI.muscles[m])).join("، "):"—"})+(E.kind==="ok"?" "+t("eta_weeks_short",{w:E.weeks}):""),8000);
+  buildPlan(planN()); return {G,focus};
 }
 function goalStrip(){
   const p=S.p, zs=zonesOf(), tw=+p.tw; if(!(tw>0)&&!zs.length) return "";
@@ -676,7 +680,7 @@ function applyChrome(){
   $("#themeSeg").innerHTML=`<button data-theme-set="light" aria-pressed="${!dark}">☀ ${t("theme_light")}</button><button data-theme-set="dark" aria-pressed="${dark}">☾ ${t("theme_dark")}</button>`;
   $("#ctySeg").setAttribute("aria-label",t("country"));
   $("#ctySeg").innerHTML=["sa","eg"].map(c=>`<button data-cty="${c}" aria-pressed="${S.country===c}">${FLAG[c]} ${t("cur_"+c)}</button>`).join("");
-  const tabs=[["profile","bullseye"],["body","balance_scale"],["food","green_salad"],["gym","person_lifting_weights"],["export","clipboard"]];
+  const tabs=[["profile","bullseye"],["body","balance_scale"],["food","green_salad"],["gym","person_lifting_weights"],["coach","robot"],["export","clipboard"]];
   $("#tabs").innerHTML=tabs.map(([k,i])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${S.tab===k}"><img src="img/food/${i}.webp" alt="">${t("tab_"+(k==="food"?"food":k))}</button>`).join("");
   $("#foot").innerHTML=`<p>${esc(t("credits"))}</p><p>${esc(t("saved_local"))}</p>`;
   
@@ -1016,11 +1020,17 @@ function renderExport(){
     <div class="prog-x" id="expBar" hidden style="margin-top:14px"><div></div></div><p class="sub" id="expMsg" role="status"></p></section>`;
 }
 
+function redoDay(d){syncWeek(); const tk=S.p.tierUsed||"std"; const n=S.meals.length||4; S.redo=((S.redo||0)%5)+1; const ms=makePlan(n,tk,d,S.redo);
+  if(S.p.tier==="budget"&&getBudget()>0){const lim=getBudget()/30; optimizeForBudget(ms,lim); fitCalories(ms); optimizeForBudget(ms,lim); fitCalories(ms);}
+  S.week[d]=ms; if(d===S.day) S.meals=ms; S.example=false;}
+function dayMicro(d){const tot=PI.nutKeys.map(()=>0); S.week[d].forEach(m=>m.items.forEach(it=>{const v=microOf(it); if(v) v.forEach((x,i)=>tot[i]+=x);})); return tot;}
+function weekMicroAvg(){syncWeek(); const tot=PI.nutKeys.map(()=>0); for(let d=0;d<7;d++) dayMicro(d).forEach((x,i)=>tot[i]+=x/7); return tot;}
 /* ---------------- render ---------------- */
 function render(){
   applyChrome(); renderHero(); renderRail();
   const P=$("#panel"); const tab=S.tab;
-  P.innerHTML=tab==="profile"?renderProfile():tab==="body"?(PI.body?PI.body.render():""):tab==="food"?renderFood():tab==="gym"?renderGym():renderExport();
+  P.innerHTML=tab==="profile"?renderProfile():tab==="body"?(PI.body?PI.body.render():""):tab==="food"?renderFood():tab==="gym"?renderGym():tab==="coach"?(PI.coach?PI.coach.render():""):renderExport();
+  if(tab==="coach"&&PI.coach) PI.coach.afterRender();
   save();
 }
 function setTab(k){S.tab=k; render(); try{history.replaceState(null,"","#"+k);}catch(e){} window.scrollTo({top:$(".tabs").offsetTop,behavior:"smooth"});}
@@ -1048,9 +1058,7 @@ document.addEventListener("click",async ev=>{
     const n=Math.max(3,S.meals.length);
     buildPlan(n); render(); toast(lastBudgetMsg||t(v==="tayyibat"?"style_set_tayb":"style_set_normal",{n}),7000); return;}
   if(d.day!=null){syncWeek(); S.day=+d.day; S.meals=S.week[S.day]; ui={alt:null,nut:null}; render(); const el=$(".weekstrip"); if(el) el.scrollIntoView({block:"nearest"}); return;}
-  if(d.redoday!=null){const tk=S.p.tierUsed||"std"; const n=S.meals.length||4; S.redo=((S.redo||0)%5)+1; const ms=makePlan(n,tk,S.day,S.redo);
-    if(S.p.tier==="budget"&&getBudget()>0){const lim=getBudget()/30; optimizeForBudget(ms,lim); fitCalories(ms); optimizeForBudget(ms,lim); fitCalories(ms);}
-    S.meals=ms; S.week[S.day]=ms; S.example=false; ui={alt:null,nut:null}; render(); toast(t("day_redone",{d:wdName(S.day)})); return;}
+  if(d.redoday!=null){redoDay(S.day); ui={alt:null,nut:null}; render(); toast(t("day_redone",{d:wdName(S.day)})); return;}
   if(d.auto!=null){buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("week_built")); return;}
   if(d.tier){S.p.tier=d.tier; ui={alt:null,nut:null}; if(d.tier!=="budget"||getBudget()>0){buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("week_built"));} else render(); return;}
   if(d.budgetgo!=null){const v=+($("#budgetIn")||{}).value; if(v>0) setBudget(v); buildPlan(S.meals.length); render(); toast(lastBudgetMsg||t("week_built")); return;}
@@ -1265,7 +1273,8 @@ async function exportPdf(kind){
   rep.innerHTML=""; $$("[data-export]").forEach(b=>b.disabled=false); setTimeout(()=>{bar.hidden=true;},1200);
 }
 
-PI.app={get S(){return S;},t,esc,fmt,nm,r1,render,targets,buildPlan,toast,use,fimg,WD_PATTERN,gymDays,MEALKEYS,save,setTab,bodyMap};
+PI.app={get S(){return S;},t,esc,fmt,nm,r1,render,targets,buildPlan,toast,use,fimg,WD_PATTERN,gymDays,MEALKEYS,save,setTab,bodyMap,
+  helpers:{wdName,sumItems,calcItem,dayHeadline,program,weekMicroAvg,dayMicro,rdaSet,etaInfo,banned,priceTier,eqGrams,defMethod:id=>defMethod(F[id]),redoDay,setBudget,lastBudgetMsg:()=>lastBudgetMsg,applyGoalQuiet:()=>applyGoalCore()}};
 ensureWeek();
 render();
 })();
