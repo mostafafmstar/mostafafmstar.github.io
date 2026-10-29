@@ -125,7 +125,7 @@ function bubble(m,i){
 function suggestions(){return ["coach_q1","coach_q2","coach_q3","coach_q4","coach_q5","coach_q6"].map(k=>`<button class="chip sm" data-coachq="${esc(t(k))}">${esc(t(k))}</button>`).join("");}
 function render(){
   const h=hist();
-  return `<section class="card coach"><div class="coachhead"><img class="coachhero" src="img/coach.webp?v=3" alt="${esc(t("coach_name"))}"><div><h3>${esc(t("coach_title"))}</h3>
+  return `<section class="card coach"><div class="coachhead"><img class="coachhero" src="img/coach.webp?v=4" alt="${esc(t("coach_name"))}"><div><h3>${esc(t("coach_title"))}</h3>
     <p class="hi">${esc(t("coach_hello"))}</p><p class="sub" style="margin:0">${esc(t("coach_desc"))}</p></div></div>
     <div class="chatlog" id="chatlog">${h.length?h.map(bubble).join(""):`<div class="cempty">${esc(t("coach_empty"))}</div>`}</div>
     <div class="chips cq">${suggestions()}</div>
