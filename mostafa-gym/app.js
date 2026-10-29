@@ -681,7 +681,7 @@ function applyChrome(){
   $("#ctySeg").setAttribute("aria-label",t("country"));
   $("#ctySeg").innerHTML=["sa","eg"].map(c=>`<button data-cty="${c}" aria-pressed="${S.country===c}">${FLAG[c]} ${t("cur_"+c)}</button>`).join("");
   const tabs=[["profile","bullseye"],["body","balance_scale"],["food","green_salad"],["gym","person_lifting_weights"],["coach","robot"],["export","clipboard"]];
-  $("#tabs").innerHTML=tabs.map(([k,i])=>k==="coach"?`<button class="tab coachtab" role="tab" data-tab="coach" aria-selected="${S.tab==="coach"}"><span class="coachav" aria-hidden="true"><img src="img/coach.webp" alt=""></span>${t("tab_coach")}</button>`:`<button class="tab" role="tab" data-tab="${k}" aria-selected="${S.tab===k}"><img src="img/food/${i}.webp" alt="">${t("tab_"+(k==="food"?"food":k))}</button>`).join("");
+  $("#tabs").innerHTML=tabs.map(([k,i])=>k==="coach"?`<button class="tab coachtab" role="tab" data-tab="coach" aria-selected="${S.tab==="coach"}"><span class="coachav" aria-hidden="true"><img src="img/coach.webp?v=2" alt=""></span>${t("tab_coach")}</button>`:`<button class="tab" role="tab" data-tab="${k}" aria-selected="${S.tab===k}"><img src="img/food/${i}.webp" alt="">${t("tab_"+(k==="food"?"food":k))}</button>`).join("");
   $("#foot").innerHTML=`<p>${esc(t("credits"))}</p><p>${esc(t("saved_local"))}</p>`;
   
 }
