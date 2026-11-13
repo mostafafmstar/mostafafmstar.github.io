@@ -364,6 +364,24 @@ ul.zeta{margin:6px 0 0;padding-inline-start:18px;display:flex;flex-direction:col
 .coachhero{width:190px;height:209px;object-fit:contain;background:radial-gradient(circle at 50% 58%,#FFE27A 0 40%,rgba(246,180,0,0) 66%);flex:none;margin-top:-34px;filter:drop-shadow(0 8px 14px rgba(0,0,0,.22))}
 .coachhead h3{margin:0 0 4px}.coachhead .hi{margin:0 0 6px;font-weight:700;color:var(--leaf-ink);font-size:1.02rem}
 @media (max-width:720px){.coachhero{width:120px;height:132px;margin-top:-20px}.coachhead{gap:10px}}
+.pdrop{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;padding:14px;border:2px dashed var(--line);border-radius:16px;background:var(--surface2)}
+.pdrop input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.pdrop label.btn{cursor:pointer}
+.pstat{margin:10px 0 0;padding:8px 12px;border-radius:12px;font-weight:600;font-size:.88rem;background:var(--surface2)}
+.pstat.good{background:var(--leaf-soft);color:var(--leaf-ink)}.pstat.warn{background:var(--tomato-soft);color:var(--tomato)}
+.psum{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:12px}
+.psum div{background:var(--surface2);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.psum span{font-size:.74rem;color:var(--muted)}.psum b{font-size:.95rem;overflow-wrap:anywhere}
+.orig{font-size:.8rem;color:var(--muted);margin:2px 0 4px}.orig b{color:var(--ink)}
+.ctag{display:inline-block;font-size:.7rem;font-weight:700;background:var(--sea-soft);color:var(--sea);border-radius:8px;padding:1px 7px}.ctag.warn{background:var(--sun-soft);color:#9A6A00}
+.shot.noimg{display:flex;align-items:center;justify-content:center;font-size:2.2rem;background:var(--surface2);min-height:120px}
+.rawc select{max-width:100%}
+.volbars{display:flex;flex-direction:column;gap:6px;margin:8px 0 10px}
+.vb{display:grid;grid-template-columns:110px minmax(0,1fr) 34px;gap:8px;align-items:center;font-size:.82rem}
+.vb .bar{height:10px;background:var(--surface2);border-radius:6px;overflow:hidden}.vb .bar div{height:100%;border-radius:6px}
+ul.tiplist{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+ul.tiplist li{padding:8px 12px;border-radius:12px;background:var(--surface2);font-size:.88rem;line-height:1.6}
+ul.tiplist li.warn{background:var(--sun-soft)}ul.tiplist li.ai{background:var(--sea-soft)}
 @media (max-width:1000px){.tiergrid{grid-template-columns:1fr 1fr}.microgrid{grid-template-columns:1fr 1fr}}
 @media (max-width:720px){.falt{grid-template-columns:32px minmax(0,1fr) auto}.falt .btn{grid-column:1/-1}.microgrid{grid-template-columns:1fr}}
 /* alternatives & missing machines */
@@ -510,5 +528,7 @@ ul.zeta{margin:6px 0 0;padding-inline-start:18px;display:flex;flex-direction:col
 <script src="data_nutr.js"></script>
 <script src="data_goal.js"></script>
 <script src="body.js"></script>
+<script src="data_myprog.js"></script>
+<script src="progimport.js"></script>
 <script src="coach.js"></script>
 <script src="app.js"></script>

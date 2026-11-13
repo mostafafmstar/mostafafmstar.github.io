@@ -449,8 +449,26 @@ function buildCustom(){
     return {wd,title,ex,cardio};
   });
 }
-function program(){return S.gym.mode==="custom"?buildCustom():buildGeneral();}
-const gymModeKey=()=>S.gym.mode==="custom"?"gym_custom":"gym_general";
+/* program read from a file (PDF / photos): same days, sets and reps as the coach's sheet; exercises mapped to the library */
+function buildImported(){
+  const P=S.gym.imp; if(!P||!P.days||!P.days.length) return [];
+  const days=S.gym.wd.slice().sort((a,b)=>a-b); if(!days.length) return [];
+  const N=P.days.length;
+  return days.map((wd,i)=>{
+    const D=P.days[i%N]; const dayUsed=new Set(); const ex=[], raw=[];
+    D.ex.forEach((e,j)=>{
+      if(e.id&&PI.ex[e.id]){
+        let id=finalId(e.id,dayUsed); let why=id!==e.id?"miss":""; if(isMiss(id)){const al=alts(id).find(x=>!dayUsed.has(x)); if(al){id=al; why="miss";}}
+        if(unsafe(id)){const al=alts(id)[0]; if(al){id=al; why="safe";}}
+        dayUsed.add(id); const role=PI.ex[id].r;
+        ex.push({id,sets:e.sets,reps:e.reps,rest:e.rest||(role==="c"?90:60),rpe:8,tech:e.tech||"",orig:e.name,close:e.close,note:e.note,why,src:[i%N,j]});
+      } else raw.push(Object.assign({src:[i%N,j]},e));
+    });
+    return {wd,title:PI.prog.loc(D.title)+(i>=N?" · "+t("again"):""),ex,raw,cardio:D.cardio?{id:cardioFor(S.gym.eq),min:D.cardio}:null,imp:true};
+  });
+}
+function program(){return S.gym.mode==="custom"?buildCustom():S.gym.mode==="file"&&S.gym.imp?buildImported():buildGeneral();}
+const gymModeKey=()=>S.gym.mode==="custom"?"gym_custom":S.gym.mode==="file"&&S.gym.imp?"gym_file":"gym_general";
 function exMuscles(id){
   const e=PI.ex[id]; const prim=[e.g]; const sec=new Set();
   (e.x||EXSEC[id]||[]).forEach(m=>{const g=PI.dbMuscle[m]; if(g&&g!==e.g) sec.add(g);});
@@ -933,6 +951,8 @@ function exCard(e,ctx){
   return `<div class="exc">
     <div class="shot"><img class="f1" src="${exImg(e.id)}" alt="${esc(nm(x))}" loading="lazy"><img class="b f2" src="${exImg(e.id)}" alt="" loading="lazy"><span class="eqtag">${esc(t("the_equipment"))}: ${esc(eqn)}</span>${x.ill?`<span class="illtag">${esc(t("ill_tag"))}</span>`:""}</div>
     <div style="min-width:0"><h4>${esc(nm(x))} ${S.lang!=="en"?`<small>${esc(x.n.en)}</small>`:""}</h4>
+      ${e.orig?`<div class="orig">📄 ${esc(t("file_orig"))}: <b>${esc(e.orig)}</b>${e.close?` <span class="ctag">${esc(t("file_close"))}</span>`:""}${e.why?` <span class="ctag warn">${esc(t(e.why==="safe"?"file_swapped_safe":"file_swapped"))}</span>`:""}</div>`:""}
+      ${e.note&&PI.prog.loc(e.note)?`<div class="orig">💬 ${esc(PI.prog.loc(e.note))}</div>`:""}
       ${e.sets?`<div class="dose num"><span class="r">${e.sets} × ${esc(e.reps)}</span><span>${esc(t("rest"))} ${e.rest>=120?r1(e.rest/60)+" "+t("min"):e.rest+" "+t("sec")}</span><span>RPE ${e.rpe}</span>${e.tech?`<span class="tech">${esc(t("tech_"+e.tech))}</span>`:""}${e.focus?`<span class="tech">${esc(t("focus_extra"))}</span>`:""}</div>`:`<div class="dose"><span>${esc(t(x.sty==="m"?"sty_m":x.at==="bw"?"lib_bw":"sty_f"))}</span>${unsafe(e.id)?`<span class="r">${esc(t("lib_unsafe"))}</span>`:""}</div>`}
       <div class="mtags"><span class="p">${esc(t("primary_m"))}: ${mm.prim.map(g=>esc(nm(PI.muscles[g]))).join("، ")}</span>${mm.sec.length?`<span class="s">${esc(t("secondary_m"))}: ${mm.sec.map(g=>esc(nm(PI.muscles[g]))).join("، ")}</span>`:""}</div>
       <details><summary>${esc(t("technique"))}</summary><ol>${st.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
@@ -949,9 +969,64 @@ function dayCard(d,i){
   const mins=Math.round(d.ex.reduce((a,e)=>a+e.sets*(0.9+e.rest/60),0)+8+(d.cardio?d.cardio.min:0));
   return `<section class="card dayc"><div class="dayc-h"><span class="dn num">${i+1}</span><div><h3>${esc(wd)} · ${esc(d.title)}</h3></div>
     <span class="meta">${esc(t("exercises_n",{n:d.ex.length}))} · ${esc(t("about_min",{n:mins}))}</span></div>
-    <div class="cardio" style="background:var(--sun-soft)"><img src="img/food/fire.webp" alt=""><span>${esc(t(classicOn()?"classic_warm":"warmup"))}</span></div>
-    <div class="exl">${d.ex.map(e=>exCard(e,"prog")).join("")}</div>
+    <div class="cardio" style="background:var(--sun-soft)"><img src="img/food/fire.webp" alt=""><span>${esc(d.imp&&S.gym.imp&&S.gym.imp.warm?PI.prog.loc(S.gym.imp.warm):t(classicOn()?"classic_warm":"warmup"))}</span></div>
+    <div class="exl">${d.ex.map(e=>exCard(e,"prog")).join("")}${(d.raw||[]).map(e=>rawCard(e,"d")).join("")}</div>
     ${d.cardio?`<div class="cardio"><img src="img/food/person_running.webp" alt=""><span><b>${esc(t("cardio_finish"))}:</b> ${esc(nm(PI.ex[d.cardio.id]))} · ${d.cardio.min} ${esc(t("min"))}</span><a class="yt" style="margin-inline-start:auto" href="${ytUrl(d.cardio.id)}" target="_blank" rel="noopener">${esc(t("video"))}</a></div>`:""}
+  </section>`;
+}
+function rawCard(e,kind){
+  const sugg=e.muscle&&PI.muscles[e.muscle]&&e.muscle!=="cardio"?EXIDS.filter(id=>PI.ex[id].g===e.muscle&&!unsafe(id)).slice(0,8):[];
+  return `<div class="exc rawc"><div class="shot noimg"><span>📄</span></div><div style="min-width:0"><h4>${esc(e.name||e.name_ar)} ${e.name_ar&&e.name_ar!==e.name?`<small>${esc(e.name_ar)}</small>`:""}</h4>
+    <div class="dose num"><span class="r">${e.sets} × ${esc(e.reps)}</span>${e.tech?`<span class="tech">${esc(t("tech_"+e.tech))}</span>`:""}</div>
+    ${e.note&&PI.prog.loc(e.note)?`<div class="orig">💬 ${esc(PI.prog.loc(e.note))}</div>`:""}
+    <p class="sub" style="margin:6px 0">${esc(t("file_unmatched"))}</p>
+    ${sugg.length?`<select class="in" data-rawmap="${kind}|${e.src[0]}|${e.src[1]}" aria-label="${esc(t("file_link_lib"))}"><option value="">${esc(t("file_link_lib"))}…</option>${sugg.map(id=>`<option value="${id}">${esc(nm(PI.ex[id]))}</option>`).join("")}</select>`:""}
+    <div class="links"><a class="yt" href="https://www.youtube.com/results?search_query=${encodeURIComponent((e.name||e.name_ar)+" exercise")}" target="_blank" rel="noopener">${esc(t("watch_youtube"))}</a></div></div></div>`;
+}
+function extrasCards(){
+  const P=S.gym.imp; if(!P||!P.extras||!P.extras.length) return "";
+  return P.extras.map((x,xi)=>{const dayUsed=new Set(); const cards=x.ex.map((e,j)=>{ if(e.id&&PI.ex[e.id]){ let id=finalId(e.id,dayUsed); let why=id!==e.id?"miss":""; if(isMiss(id)){const al=alts(id).find(x=>!dayUsed.has(x)); if(al){id=al; why="miss";}} if(unsafe(id)){const al=alts(id)[0]; if(al){id=al; why="safe";}} dayUsed.add(id);
+      return exCard({id,sets:e.sets,reps:e.reps,rest:e.rest||45,rpe:8,tech:e.tech,orig:e.name,close:e.close,note:e.note,why},"prog"); } return rawCard(Object.assign({src:[xi,j]},e),"x"); }).join("");
+    return `<section class="card dayc"><div class="dayc-h"><span class="dn num">+</span><div><h3>${esc(PI.prog.loc(x.title))}</h3>${PI.prog.loc(x.when)?`<p class="sub" style="margin:2px 0 0">${esc(PI.prog.loc(x.when))}</p>`:""}</div><span class="meta">${esc(t("exercises_n",{n:x.ex.length}))}</span></div><div class="exl">${cards}</div></section>`;}).join("");
+}
+/* review of an imported program: volume per muscle, gaps, balance, goal fit, safety */
+function impTips(prog){
+  const P=S.gym.imp; if(!P) return [];
+  const vol={}; const add=(m,v)=>{vol[m]=(vol[m]||0)+v;};
+  prog.forEach(d=>d.ex.forEach(e=>add(PI.ex[e.id].g,e.sets)));
+  const exUse=(P.extras||[]).reduce((a,x)=>a+x.ex.length,0)>0;
+  
+  const V=m=>Math.round(vol[m]||0); const back=V("back")+V("upperback");
+  const tips=[]; const ex=(m,k)=>{const id=pickEx(m,"c",k||0,S.gym.eq,new Set()); return id?nm(PI.ex[id]):"";};
+  const big={chest:V("chest"),back,shoulders:V("shoulders"),quads:V("quads"),hamstrings:V("hamstrings"),glutes:V("glutes")};
+  Object.entries(big).forEach(([m,v])=>{ const name=m==="back"?nm(PI.muscles.back):nm(PI.muscles[m]);
+    if(v===0) tips.push({lvl:"warn",txt:t("tip_missing",{m:name,ex:ex(m==="back"?"back":m)})});
+    else if(v<8) tips.push({lvl:"info",txt:t("tip_low_vol",{m:name,v,ex:ex(m==="back"?"back":m,1)})});
+    else if(v>26) tips.push({lvl:"info",txt:t("tip_high_vol",{m:name,v})}); });
+  ["calves","abs","lowerback"].forEach(m=>{ if(!V(m)&&!(m==="abs"&&exUse)) tips.push({lvl:"info",txt:t("tip_missing_small",{m:nm(PI.muscles[m]),ex:ex(m)})}); });
+  const push=V("chest"), pull=back; if(push&&(!pull||push/pull>1.5)) tips.push({lvl:"info",txt:t("tip_pushpull",{a:Math.round(push),b:Math.round(pull),ex:ex("upperback",1)})});
+  const fr={}; prog.forEach((d,i)=>{const ms=new Set(d.ex.map(e=>PI.ex[e.id].g)); ms.forEach(m=>fr[m]=(fr[m]||0)+1);});
+  if(["hypertrophy","strength"].includes(S.gym.gg)&&["chest","back","shoulders","quads","hamstrings"].filter(m=>(fr[m]||0)<2).length>=4) tips.push({lvl:"info",txt:t("tip_freq")});
+  const focus=(S.gym.focus||[]).filter(m=>PI.muscles[m]); const lowF=focus.filter(m=>V(m)<10);
+  if(lowF.length) tips.push({lvl:"warn",txt:t("tip_focus",{m:lowF.map(m=>nm(PI.muscles[m])).join("، "),ex:lowF.map(m=>ex(m,2)).filter(Boolean).join("، ")})});
+  if(["fat_loss","cut"].includes(S.p.goal)&&!prog.some(d=>d.cardio)) tips.push({lvl:"info",txt:t("tip_cardio")});
+  const long=prog.filter(d=>d.ex.reduce((a,e)=>a+e.sets,0)>30); if(long.length) tips.push({lvl:"info",txt:t("tip_long_session",{d:long.map(d=>(PI.T.wd[S.lang]||PI.T.wd.en)[d.wd]).join("، ")})});
+  if(S.gym.wd.length>=7) tips.push({lvl:"warn",txt:t("tip_rest")});
+  const sw=prog.reduce((a,d)=>a+d.ex.filter(e=>e.why==="safe").length,0); if(sw) tips.push({lvl:"warn",txt:t("tip_preg",{n:sw})});
+  const ms=prog.reduce((a,d)=>a+d.ex.filter(e=>e.why==="miss").length,0); if(ms) tips.push({lvl:"info",txt:t("tip_miss",{n:ms})});
+  const raw=prog.reduce((a,d)=>a+(d.raw||[]).length,0); if(raw) tips.push({lvl:"info",txt:t("tip_raw",{n:raw})});
+  return tips;
+}
+function impTipsCard(prog){
+  const P=S.gym.imp; const tips=impTips(prog); const ai=(P.tips||[]);
+  const vol={}; prog.forEach(d=>d.ex.forEach(e=>{const g=PI.ex[e.id].g; vol[g]=(vol[g]||0)+e.sets;}));
+  const bars=Object.entries(vol).filter(([m])=>m!=="cardio").sort((a,b)=>b[1]-a[1]);
+  const mx=Math.max(20,...bars.map(b=>b[1]));
+  return `<section class="card"><h3><img src="img/food/sparkles.webp" alt="">${esc(t("file_tips"))}</h3>
+    <p class="sub" style="margin-top:-4px">${esc(t("file_vol_note"))}</p>
+    <div class="volbars">${bars.map(([m,v])=>`<div class="vb"><span>${esc(nm(PI.muscles[m]))}</span><div class="bar"><div style="width:${Math.round(v/mx*100)}%;background:${v<8?"var(--sun)":v>26?"var(--tomato)":"var(--leaf)"}"></div></div><b class="num">${v}</b></div>`).join("")}</div>
+    ${tips.length?`<ul class="tiplist">${tips.map(x=>`<li class="${x.lvl}">${esc(x.txt)}</li>`).join("")}</ul>`:`<p>${esc(t("tip_ok"))}</p>`}
+    ${ai.length?`<h4 style="margin-top:12px">${esc(t("file_ai_tips"))}</h4><ul class="tiplist">${ai.map(x=>`<li class="ai">${esc(x)}</li>`).join("")}</ul>`:""}
   </section>`;
 }
 function renderLibrary(){
@@ -978,7 +1053,20 @@ function renderGym(){
   let warn="";
   if(!g.wd.length) warn=t("need_day"); else if(g.mode==="custom"&&!g.muscles.length) warn=t("need_muscle");
   const care=isPreg()?t("preg_gym"):isPost()?t("post_gym"):"";
-  const modes=`<div class="radio" role="tablist" style="margin-bottom:14px"><button data-gmode="general" aria-pressed="${g.mode==="general"}">${esc(t("gym_general"))}</button><button data-gmode="custom" aria-pressed="${g.mode==="custom"}">${esc(t("gym_custom"))}</button><button data-gmode="library" aria-pressed="${g.mode==="library"}">${esc(t("gym_library"))}</button></div>`;
+  const modes=`<div class="radio" role="tablist" style="margin-bottom:14px"><button data-gmode="general" aria-pressed="${g.mode==="general"}">${esc(t("gym_general"))}</button><button data-gmode="custom" aria-pressed="${g.mode==="custom"}">${esc(t("gym_custom"))}</button><button data-gmode="library" aria-pressed="${g.mode==="library"}">${esc(t("gym_library"))}</button><button data-gmode="file" aria-pressed="${g.mode==="file"}">📄 ${esc(t("gym_file"))}</button></div>`;
+  if(g.mode==="file"){
+    const P=g.imp;
+    return `${care?`<div class="banner care"><img src="${fimg(isPreg()?"seedling":"glass_of_milk")}" alt=""><p>${esc(care)}</p></div>`:""}
+    ${goalStrip()}
+    ${PI.prog?PI.prog.card(modes):""}
+    ${P?`<section class="card"><h3><img src="img/food/calendar.webp" alt="">${esc(t("pick_days"))}</h3><div class="days">${dayBtns}</div>
+      <p class="sub" style="margin:8px 0 0">${esc(g.wd.length===P.days.length?t("file_days_ok",{n:P.days.length}):g.wd.length>P.days.length?t("file_days_more",{n:P.days.length,w:g.wd.length}):t("file_days_less",{n:P.days.length,w:g.wd.length}))}</p>
+      ${(g.miss||[]).length?`<div class="missbox"><b>${esc(t("missing_n",{n:g.miss.length}))}</b> ${g.miss.map(id=>`<button class="chip sm" data-unmiss="${id}">${esc(nm(PI.ex[id]))} ✕</button>`).join("")} <button class="btn sm ghost" data-unmissall>${esc(t("restore_all"))}</button></div>`:""}</section>
+    ${g.wd.length?`${impTipsCard(prog)}
+    <section class="card"><h3><img src="img/food/calendar.webp" alt="">${esc(t("your_week"))}</h3>
+      <div class="week">${wdn.map((d,i)=>{const pd=prog.find(x=>x.wd===i); return `<div class="wk ${pd?"on":""}"><b>${esc(d)}</b><span>${esc(pd?pd.title:t("rest_day"))}</span></div>`;}).join("")}</div></section>
+    ${prog.map(dayCard).join("")}${extrasCards()}${linkBanner("gym")}`:`<div class="banner"><p>${esc(t("need_day"))}</p></div>`}`:""}`;
+  }
   if(g.mode==="library") return `${care?`<div class="banner care"><img src="${fimg(isPreg()?"seedling":"glass_of_milk")}" alt=""><p>${esc(care)}</p></div>`:""}<section class="card">${modes}<p class="sub" style="margin:0">${esc(t("lib_desc"))}</p></section>${renderLibrary()}`;
   return `
   ${care?`<div class="banner care"><img src="${fimg(isPreg()?"seedling":"glass_of_milk")}" alt=""><p>${esc(care)}</p></div>`:""}
@@ -1101,6 +1189,8 @@ document.addEventListener("input",ev=>{
   if(el.id==="loadR"){S.gym.load=+el.value; clearTimeout(el._t); el._t=setTimeout(render,250); return;}
 });
 document.addEventListener("change",ev=>{
+  {const el=ev.target; if(el&&el.dataset&&el.dataset.rawmap){const [k,a,b]=el.dataset.rawmap.split("|"); const P=S.gym.imp; const v=el.value;
+    if(P&&v&&PI.ex[v]){const list=k==="x"?P.extras[+a]:P.days[+a]; const e=list&&list.ex[+b]; if(e){e.id=v; e.close=true; save(); render(); toast(t("file_linked",{x:nm(PI.ex[v])}));}} return;}}
   {const el=ev.target; if(el.dataset&&el.dataset.p&&el.type==="number"){const k=el.dataset.p; const raw=el.value.trim();
     if(k==="tw"&&raw===""){S.p.tw=0; return render();}
     if(raw===""||isNaN(+raw)){el.value=S.p[k]||""; return;}
@@ -1235,12 +1325,18 @@ function gymBlocks(solo){
         <div><h3>${esc(nm(x))}${S.lang!=="en"?` <span style="font-weight:400;font-size:10px;color:#5A6D61">${esc(x.n.en)}</span>`:""}</h3>
         <div class="dose num"><span class="r">${e.sets} × ${esc(e.reps)}</span><span>${esc(t("rest"))} ${e.rest} ${esc(t("sec"))}</span><span>RPE ${e.rpe}</span>${e.tech?`<span class="r">${esc(t("tech_"+e.tech))}</span>`:""}<span>${esc(t("the_equipment"))}: ${esc(nm(PI.equip[x.eq]||{n:{en:x.eq}}))}</span></div>
         <ol>${st.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${S.lang==="ar"&&x.m?`<div style="font-size:10px;background:#FFE1DB;border-radius:6px;padding:3px 6px"><b>${esc(t("mistake"))}:</b> ${esc(x.m)}</div>`:""}
+        ${e.orig?`<div style="font-size:9.5px;color:#5A6D61">📄 ${esc(t("file_orig"))}: ${esc(e.orig)}${e.note&&PI.prog.loc(e.note)?" — "+esc(PI.prog.loc(e.note)):""}</div>`:""}
         <div style="font-size:9.5px;color:#5A6D61">${esc(t("alts_title"))}: ${alts(e.id).map(a=>esc(nm(PI.ex[a]))).join(" · ")}</div>
         <div class="ylink" data-url="${esc(ytUrl(e.id))}">▶ ${esc(t("video"))}: ${esc(ytUrl(e.id))}</div></div>
         ${bodyMap(mm.prim,mm.sec,42)}</div></div>`);});
     if(!d.ex.length) b.push(head);
+    if((d.raw||[]).length) b.push(`<div class="rb"><table class="rt"><tbody>${d.raw.map(e=>`<tr><td>📄 ${esc(e.name||e.name_ar)}</td><td class="num">${e.sets} × ${esc(e.reps)}</td><td>${esc(t("file_unmatched_short"))}</td></tr>`).join("")}</tbody></table></div>`);
     if(d.cardio) b.push(`<div class="rb" style="background:#D6F1F1;border:0"><b>${esc(t("cardio_finish"))}:</b> ${esc(nm(PI.ex[d.cardio.id]))} · ${d.cardio.min} ${esc(t("min"))}</div>`);
   });
+  if(S.gym.mode==="file"&&S.gym.imp){
+    (S.gym.imp.extras||[]).forEach(x=>b.push(`<div class="rb"><h3>${esc(PI.prog.loc(x.title))}</h3>${PI.prog.loc(x.when)?`<p style="margin:0 0 6px;font-size:10.5px">${esc(PI.prog.loc(x.when))}</p>`:""}<table class="rt"><tbody>${x.ex.map(e=>`<tr><td>${e.id&&PI.ex[e.id]?esc(nm(PI.ex[e.id])):"📄 "+esc(e.name)}${e.id&&e.name?` <span style="color:#5A6D61;font-size:9.5px">(${esc(e.name)})</span>`:""}</td><td class="num">${e.sets} × ${esc(e.reps)}</td><td>${e.tech?esc(t("tech_"+e.tech)):""}</td></tr>`).join("")}</tbody></table></div>`));
+    const tips=impTips(program()); if(tips.length) b.push(`<div class="rb"><h3>${esc(t("file_tips"))}</h3>${tips.map(x=>`<div class="rtip">${esc(x.txt)}</div>`).join("")}</div>`);
+  }
   return b;
 }
 async function exportPdf(kind){

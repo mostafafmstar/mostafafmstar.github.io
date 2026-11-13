@@ -40,7 +40,7 @@ WEEK PLAN (day index = name):
 ${weekLines}
 Selected day in the app: ${S.day} (${day(S.day)}). Today is ${day((new Date().getDay()+1)%7)} (index ${(new Date().getDay()+1)%7}).
 Nutrients below 70% of daily need (weekly average): ${low.join(", ")||"none"}.
-TRAINING: ${S.gym.mode} program, goal ${S.gym.gg}, level ${S.gym.level}, equipment ${S.gym.eq}, ${S.gym.wd.length} days, priority muscles: ${(S.gym.focus||[]).join(", ")||"none"}, extra cardio ${S.gym.cardioMin||0} min.
+TRAINING: ${S.gym.mode==="file"&&S.gym.imp?"imported from the coach's file ("+(S.gym.imp.title||S.gym.imp.src)+")":S.gym.mode} program, goal ${S.gym.gg}, level ${S.gym.level}, equipment ${S.gym.eq}, ${S.gym.wd.length} days, priority muscles: ${(S.gym.focus||[]).join(", ")||"none"}, extra cardio ${S.gym.cardioMin||0} min.
 ${progLines}`;
 }
 function rules(){
